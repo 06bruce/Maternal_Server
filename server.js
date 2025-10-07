@@ -50,6 +50,7 @@ app.use(morgan("combined"));
 const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
+  'https://maternalhub.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
