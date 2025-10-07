@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: maternal-server
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CHATBASE_API_KEY
+        sync: false
+      - key: CHATBASE_BOT_ID
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

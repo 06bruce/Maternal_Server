@@ -4,6 +4,8 @@ const helmet = require("helmet");
 const compression = require("compression");
 const morgan = require("morgan");
 const mongoose = require("mongoose");
+const jwt = require('jsonwebtoken');
+
 
 require("dotenv").config();
 

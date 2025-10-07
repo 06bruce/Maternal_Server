@@ -72,7 +72,7 @@ router.post('/register', [
       });
     }
 
-    const {
+    const { 
       name,
       email,
       password,
@@ -83,13 +83,22 @@ router.post('/register', [
     } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findByEmail(email);
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'User with this email already exists'
-      });
-    }
+    // const existingUser = await User.findByEmail(email);
+    // if (existingUser) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'User with this email already exists'
+    //   });
+    // }
+
+    const existingUser = await User.findByEmail(email)
+      if (existingUser)
+        return res.status(400).json({
+      success: false,
+      message: "User with this email already exist"
+     })
+    
+
 
     // Validate and calculate pregnancy data
     const pregnancyValidation = validatePregnancyData({

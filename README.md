@@ -224,15 +224,53 @@ The frontend is configured to:
 3. Include tokens in Authorization headers
 4. Handle authentication errors
 
-## 🚀 Next Steps
+## 🚀 Deployment on Render
 
-After setting up authentication, you can:
-1. Add chat history persistence
-2. Implement real AI integration
-3. Add file upload for medical documents
-4. Create admin dashboard
-5. Add email verification
-6. Implement password reset
+### Quick Deploy
+
+1. **Push your code to GitHub** (already done)
+
+2. **Go to [Render](https://render.com)** and sign up/login
+
+3. **Create a new Web Service:**
+   - Click "New +" → "Web Service"
+   - Connect your GitHub account
+   - Select the `Maternal_Server` repository
+   - Render will auto-detect the `render.yaml` configuration
+
+4. **Set Environment Variables:**
+   - `MONGODB_URI` - Your MongoDB Atlas connection string
+   - `CHATBASE_API_KEY` - Your Chatbase API key
+   - `CHATBASE_BOT_ID` - Your Chatbase bot ID
+   - `FRONTEND_URL` - Your Vercel frontend URL (e.g., https://maternalhub.vercel.app)
+   - `JWT_SECRET` - Will be auto-generated
+
+5. **Deploy:**
+   - Click "Create Web Service"
+   - Wait for deployment (5-10 minutes)
+   - Your API will be live at `https://maternal-server.onrender.com`
+
+### Manual Deployment Steps
+
+If not using `render.yaml`:
+
+1. **Create New Web Service** on Render
+2. **Configure:**
+   - **Name:** maternal-server
+   - **Environment:** Node
+   - **Build Command:** `npm install`
+   - **Start Command:** `npm start`
+   - **Plan:** Free
+3. **Add Environment Variables** (see above)
+4. **Deploy**
+
+### After Deployment
+
+Update your frontend's API URL to point to your Render backend:
+```javascript
+// In frontend src/utils/api.js or similar
+const API_URL = 'https://maternal-server.onrender.com/api';
+```
 
 ## 📞 Support
 
