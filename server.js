@@ -48,8 +48,8 @@ app.use(morgan("combined"));
 
 // Configure CORS to accept multiple origins
 const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3001',
+  // 'http://localhost:3000',
+  // 'http://localhost:3001',
   'https://maternalhub.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
@@ -108,7 +108,13 @@ app.listen(PORT, () => {
   console.log(`🚀 Maternal Health API server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/health`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
-  console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}`);
+  console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'https://maternalhub.vercel.app'}`);
+  
+  // Start keep-alive service in production to prevent Render from sleeping
+  if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+    const { startKeepAlive } = require('./utils/keepAlive');
+    startKeepAlive('https://maternal-server.onrender.com');
+  }
 });
 
 module.exports = app;
