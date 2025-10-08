@@ -1,36 +1,45 @@
+const { getAllHospitals, getHospitalsBySector, searchHospitals } = require('../data/hospitals');
+
 /**
  * Get health centers
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
 const getHealthCenters = (req, res) => {
-  const centers = [
-    {
-      id: 1,
-      name: "Kigali Central Hospital",
-      location: "Kigali, Rwanda",
-      phone: "+250 782 749 660",
-      hours: "24/7 Emergency Services",
-      rating: 4.5,
-    },
-    {
-      id: 2,
-      name: "King Faisal Hospital",
-      location: "Kigali, Rwanda",
-      phone: "3939",
-      hours: "Mon-Fri: 8AM-6PM",
-      rating: 4.8,
-    },
-    {
-      id: 3,
-      name: "Rwanda Military Hospital",
-      location: "Kigali, Rwanda",
-      phone: "4060",
-      hours: "24/7 Emergency Services",
-      rating: 4.3,
-    },
-  ];
-  res.json(centers);
+  try {
+    const hospitals = getAllHospitals();
+    res.json(hospitals);
+  } catch (error) {
+    console.error('Error fetching health centers:', error);
+    res.status(500).json({ message: 'Failed to fetch health centers' });
+  }
+};
+
+/**
+ * Get health centers by sector
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getHealthCentersBySector = (req, res) => {
+  try {
+    const { district, sector } = req.params;
+    
+    if (!district || !sector) {
+      return res.status(400).json({ message: 'District and sector are required' });
+    }
+
+    const hospitals = getHospitalsBySector(district, sector);
+    
+    res.json({
+      district,
+      sector,
+      count: hospitals.length,
+      hospitals
+    });
+  } catch (error) {
+    console.error('Error fetching health centers by sector:', error);
+    res.status(500).json({ message: 'Failed to fetch health centers' });
+  }
 };
 
 /**
@@ -62,5 +71,6 @@ const getEmergencyContacts = (req, res) => {
 
 module.exports = {
   getHealthCenters,
+  getHealthCentersBySector,
   getEmergencyContacts,
 };
