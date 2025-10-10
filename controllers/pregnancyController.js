@@ -28,19 +28,26 @@ const getWeekInfo = async (req, res) => {
 
     // Create a detailed prompt for the AI
     const languageInstruction = language === 'rw' 
-      ? 'Respond in Kinyarwanda language.' 
+      ? 'Respond ONLY in Kinyarwanda language.' 
       : language === 'fr'
-      ? 'Respond in French language.'
-      : 'Respond in English language.';
+      ? 'Respond ONLY in French language.'
+      : 'Respond ONLY in English language.';
 
-    const prompt = `You are a maternal health expert. Provide information for week ${week} of pregnancy. ${languageInstruction}
+    const prompt = `You are a maternal health expert. Provide detailed information for week ${week} of pregnancy. ${languageInstruction}
 
-Please provide the following in a JSON format:
-1. Baby Development: Describe the baby's size, weight, and key developmental milestones for week ${week}
-2. Mother's Experience: Describe common symptoms, feelings, and physical changes the mother may experience
-3. Weekly Tips: Provide 3-4 practical tips for this week (nutrition, exercise, what to avoid, when to see a doctor)
+IMPORTANT: Return ONLY a valid JSON object with NO additional text, NO markdown, NO code blocks.
 
-Format your response as JSON with these exact keys: "babyDevelopment", "motherExperience", "weeklyTips"`;
+Provide:
+1. babyDevelopment: Baby's size (in cm and grams), weight, and 2-3 key developmental milestones happening this week
+2. motherExperience: 3-4 common symptoms and physical/emotional changes the mother experiences this week
+3. weeklyTips: 4-5 specific, actionable tips (nutrition, exercise, warning signs, doctor visits)
+
+Return ONLY this JSON structure:
+{
+  "babyDevelopment": "detailed text here",
+  "motherExperience": "detailed text here", 
+  "weeklyTips": "detailed text here"
+}`;
 
     const payload = {
       messages: [
@@ -98,17 +105,10 @@ Format your response as JSON with these exact keys: "babyDevelopment", "motherEx
   } catch (err) {
     console.error("Pregnancy info generation error:", err.response?.data || err.message);
     
-    // Fallback to basic information
-    return res.json({
-      success: true,
-      week: parseInt(req.query.week),
-      language: req.query.language || 'en',
-      info: {
-        babyDevelopment: `Week ${req.query.week}: Your baby is growing and developing important organs and systems.`,
-        motherExperience: "You may experience various pregnancy symptoms. Stay hydrated and rest when needed.",
-        weeklyTips: "Take prenatal vitamins, eat nutritious foods, stay active with gentle exercise, and attend all prenatal appointments."
-      },
-      fallback: true
+    return res.status(500).json({
+      success: false,
+      error: "Failed to generate pregnancy information",
+      details: err.response?.data || err.message
     });
   }
 };
