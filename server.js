@@ -78,9 +78,11 @@ app.use(generalLimiter);
 const authRoutes = require("./routes/auth");
 const healthRoutes = require("./routes/health");
 const chatRoutes = require("./routes/chat");
+const adminRoutes = require("./routes/admin");
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api", healthRoutes);
 app.use("/api/chat", chatLimiter, chatRoutes);
+app.use("/api/admin", authLimiter, adminRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {

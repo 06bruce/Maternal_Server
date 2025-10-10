@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
-const userSchema = new mongoose.Schema({
+const adminSchema = new mongoose.Schema({
   name: {
     type: String,
     required: [true, 'Name is required'],
     trim: true,
     maxlength: [100, 'Name cannot exceed 100 characters'],
     minlength: [2, 'Name cannot be below 2 characters']
-  },  
+  },
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -20,7 +20,7 @@ const userSchema = new mongoose.Schema({
   password: {
     type: String,
     required: [true, 'Password is required'],
-    minlength: [6, 'Password must be at least 6 characters'],
+    minlength: [8, 'Password must be at least 8 characters'],
     select: false // Don't include password in queries by default
   },
   phone: {
@@ -28,51 +28,36 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
   },
-  age: {
-    type: Number,
-    min: [0, 'Age must be at least 1'],
-    max: [140, 'Age cannot exceed 100']
-  },
-  gender: {
-    type: String,
-    enum: ['male', 'female', 'other', 'prefer_not_to_say'],
-    required: [true, 'Gender is required']
-  },
-  isPregnant: {
-    type: Boolean,
-    default: false
-  },
-  pregnancyStartDate: {
-    type: Date
-  },
-  dueDate: {
-    type: Date
-  },
-  currentWeek: {
-    type: Number,
-    min: 0,
-    max: 42
-  },
-  emergencyContacts: [{
-    name: String,
-    phone: String,
-    relationship: String
-  }],
-  preferences: {
-    language: {
-      type: String,
-      enum: ['rw', 'en', 'fr'],
-      default: 'en'
-    },
-    notifications: {
-      type: Boolean,
-      default: true
-    }
-  },
   role: {
     type: String,
-    enum: ['user', 'admin'],
-    default: 'user'
+    enum: ['super_admin', 'admin', 'moderator'],
+    default: 'admin'
+  },
+  permissions: {
+    canViewUsers: {
+      type: Boolean,
+      default: true
+    },
+    canEditUsers: {
+      type: Boolean,
+      default: true
+    },
+    canDeleteUsers: {
+      type: Boolean,
+      default: false
+    },
+    canViewAnalytics: {
+      type: Boolean,
+      default: true
+    },
+    canManageHospitals: {
+      type: Boolean,
+      default: true
+    },
+    canManageContent: {
+      type: Boolean,
+      default: false
+    }
   },
   isActive: {
     type: Boolean,
@@ -80,13 +65,17 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
 });
 
 // Hash password before saving
-userSchema.pre('save', async function(next) {
+adminSchema.pre('save', async function(next) {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return next();
   
@@ -100,20 +89,20 @@ userSchema.pre('save', async function(next) {
 });
 
 // Instance method to check password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+adminSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-// Instance method to get user profile (without password)
-userSchema.methods.getProfile = function() {
-  const userObject = this.toObject();
-  delete userObject.password;
-  return userObject;
+// Instance method to get admin profile (without password)
+adminSchema.methods.getProfile = function() {
+  const adminObject = this.toObject();
+  delete adminObject.password;
+  return adminObject;
 };
 
-// Static method to find user by email
-userSchema.statics.findByEmail = function(email) {
+// Static method to find admin by email
+adminSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('Admin', adminSchema);
