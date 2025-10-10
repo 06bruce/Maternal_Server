@@ -24,12 +24,17 @@ const sendMessage = async (req, res) => {
       return res.status(500).json({ error: "Chatbase credentials not set" });
     }
 
-    // Chatbase payload
+    // Chatbase payload - updated format
     const payload = {
-      botId: CHATBASE_BOT_ID,
-      userId: userId,
-      messages: [{ role: "user", content: message }],
-      metadata: { language },
+      messages: [
+        {
+          content: message,
+          role: "user"
+        }
+      ],
+      chatbotId: CHATBASE_BOT_ID,
+      stream: false,
+      temperature: 0
     };
 
     const response = await axios.post("https://www.chatbase.co/api/v1/chat", payload, {
@@ -40,7 +45,7 @@ const sendMessage = async (req, res) => {
     });
 
     // Chatbase returns `text` inside `response.data`
-    const aiText = response.data?.text || "Sorry, I couldn't get a response from the chatbot.";
+    const aiText = response.data?.text || response.data?.message || "Sorry, I couldn't get a response from the chatbot.";
 
     return res.json({
       type: "bot",
