@@ -52,6 +52,7 @@ router.post('/register', verifyAdminToken, [
   body('email').isEmail().normalizeEmail().withMessage('Please enter a valid email'),
   body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
   body('phone').optional().trim(),
+  body('gender').optional().isIn(['male', 'female', 'other', 'prefer_not_to_say']).withMessage('Invalid gender'),
   body('role').optional().isIn(['super_admin', 'admin', 'moderator']).withMessage('Invalid role')
 ], async (req, res) => {
   try {
@@ -72,7 +73,7 @@ router.post('/register', verifyAdminToken, [
       });
     }
 
-    const { name, email, password, phone, role } = req.body;
+    const { name, email, password, phone, role, gender } = req.body;
 
     // Check if admin already exists
     const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
@@ -89,6 +90,7 @@ router.post('/register', verifyAdminToken, [
       email: email.toLowerCase(),
       password,
       phone,
+      gender,
       role: role || 'admin',
       permissions: {
         canViewUsers: true,
