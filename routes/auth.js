@@ -1,3 +1,9 @@
+console.log('*** register handler called ***');
+console.log('Headers:', req.headers);
+console.log('Body payload:', req.body)
+
+//Debugg test
+
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const { body } = require('express-validator');

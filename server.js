@@ -75,6 +75,7 @@ const { generalLimiter, authLimiter, chatLimiter } = require('./middleware/rateL
 app.use(generalLimiter);
 
 // Routes
+app.use('/api/auth', require('./routes/auth'));
 const authRoutes = require("./routes/auth");
 const healthRoutes = require("./routes/health");
 const chatRoutes = require("./routes/chat");
