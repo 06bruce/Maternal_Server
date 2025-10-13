@@ -146,4 +146,80 @@ router.post(
   }
 );
 
+// @route   POST /api/auth/login
+// @desc    Login user
+// @access  Public
+router.post(
+  '/login',
+  [
+    body('email')
+      .isEmail()
+      .normalizeEmail()
+      .withMessage('Please enter a valid email'),
+    body('password')
+      .notEmpty()
+      .withMessage('Password is required'),
+    handleValidationErrors
+  ],
+  async (req, res) => {
+    try {
+      if (!User) {
+        return res.status(503).json({ success: false, message: 'Database model unavailable.' });
+      }
+
+      const { email, password } = req.body;
+
+      // Find user with password field (usually excluded by default)
+      const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Verify password using the model's comparePassword method
+      const isPasswordValid = await user.comparePassword(password);
+
+      if (!isPasswordValid) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid email or password'
+        });
+      }
+
+      // Update last login
+      user.lastLogin = new Date();
+      await user.save();
+
+      // Generate JWT token
+      const token = generateToken(user._id);
+
+      res.json({
+        success: true,
+        message: 'Login successful',
+        token,
+        user: user.getProfile ? user.getProfile() : {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          isPregnant: user.isPregnant,
+          currentWeek: user.currentWeek
+        }
+      });
+
+    } catch (error) {
+      console.error('Login error:', error);
+      if (error.name === 'MongooseServerSelectionError' || (error.message && error.message.includes('ECONNREFUSED'))) {
+        return res.status(503).json({ success: false, message: 'Database service unavailable.' });
+      }
+      res.status(500).json({
+        success: false,
+        message: 'Server error during login'
+      });
+    }
+  }
+);
+
 module.exports = router;
