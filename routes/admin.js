@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
+const Appointment = require('../models/Appointment');
 
 // Middleware to verify admin token
 const verifyAdminToken = async (req, res, next) => {
@@ -485,6 +486,163 @@ router.get('/pregnant-users', verifyAdminToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error fetching pregnant users'
+    });
+  }
+});
+
+// Get all appointments with pagination and filters
+router.get('/appointments', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canViewUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view appointments'
+      });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Build filter
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.reason) filter.reason = req.query.reason;
+    if (req.query.centerId) filter.centerId = req.query.centerId;
+    if (req.query.userId) filter.userId = req.query.userId;
+    if (req.query.date) filter.date = req.query.date;
+
+    const appointments = await Appointment.find(filter)
+      .populate('userId', 'name email phone')
+      .sort({ date: 1, time: 1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Appointment.countDocuments(filter);
+
+    res.json({
+      success: true,
+      appointments,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalAppointments: total,
+        appointmentsPerPage: limit
+      }
+    });
+
+  } catch (error) {
+    console.error('Get appointments error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching appointments'
+    });
+  }
+});
+
+// Get single appointment details
+router.get('/appointments/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canViewUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view appointments'
+      });
+    }
+
+    const appointment = await Appointment.findById(req.params.id)
+      .populate('userId', 'name email phone');
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      appointment
+    });
+
+  } catch (error) {
+    console.error('Get appointment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching appointment'
+    });
+  }
+});
+
+// Update appointment (admin can reschedule, change status, etc.)
+router.put('/appointments/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canEditUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to edit appointments'
+      });
+    }
+
+    const { date, time, reason, notes, status, centerId, centerName } = req.body;
+
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { date, time, reason, notes, status, centerId, centerName },
+      { new: true, runValidators: true }
+    ).populate('userId', 'name email phone');
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Appointment updated successfully',
+      appointment
+    });
+
+  } catch (error) {
+    console.error('Update appointment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating appointment'
+    });
+  }
+});
+
+// Delete appointment (admin can cancel any appointment)
+router.delete('/appointments/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canEditUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete appointments'
+      });
+    }
+
+    const appointment = await Appointment.findByIdAndDelete(req.params.id);
+
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        message: 'Appointment not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Appointment deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete appointment error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting appointment'
     });
   }
 });
