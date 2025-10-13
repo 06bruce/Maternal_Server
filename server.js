@@ -51,6 +51,8 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://maternalhub.vercel.app',
+  'https://maternal-hub.vercel.app',
+  'https://maternalhub-git-main-06bruce.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -71,7 +73,7 @@ app.use(cors({
 app.use(express.json({ limit: "10mb" }));
 
 // Rate limiting
-const { generalLimiter, authLimiter, chatLimiter } = require('./middleware/rateLimiter');
+const { generalLimiter, authLimiter, adminLimiter, chatLimiter } = require('./middleware/rateLimiter');
 app.use(generalLimiter);
 
 // Routes
@@ -86,7 +88,7 @@ const { HOSPITALS_DATA } = require('./data/hospitals');
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api", healthRoutes);
 app.use("/api/chat", chatLimiter, chatRoutes);
-app.use("/api/admin", authLimiter, adminRoutes);
+app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/pregnancy", pregnancyRoutes);
 app.use("/api/appointments", authLimiter, appointmentRoutes);
 
