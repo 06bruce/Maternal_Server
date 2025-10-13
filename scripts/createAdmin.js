@@ -16,16 +16,28 @@ async function createAdmin() {
     
     if (existingAdmin) {
       console.log('⚠️  Admin already exists with email: brucenshuti2@gmail.com');
-      console.log('Updating admin credentials...');
+      console.log('Updating admin credentials and permissions...');
       
       existingAdmin.email = 'brucenshuti2@gmail.com';
       existingAdmin.password = '804C23DD23!';
       existingAdmin.name = 'Bruce Nshuti';
+      existingAdmin.role = 'super_admin';
+      existingAdmin.permissions = {
+        canViewUsers: true,
+        canEditUsers: true,
+        canDeleteUsers: true,
+        canViewAnalytics: true,
+        canManageHospitals: true,
+        canManageContent: true
+      };
+      existingAdmin.isActive = true;
       await existingAdmin.save();
       
-      console.log('✅ Admin credentials updated successfully!');
+      console.log('✅ Admin credentials and permissions updated successfully!');
       console.log('\n📧 Email: brucenshuti2@gmail.com');
       console.log('🔑 Password: 804C23DD23!');
+      console.log('👤 Role: super_admin');
+      console.log('✓ All permissions enabled');
       process.exit(0);
     }
 
