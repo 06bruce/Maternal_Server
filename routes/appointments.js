@@ -107,4 +107,129 @@ router.delete('/:id', verifyToken, async (req, res) => {
   }
 });
 
+// PUT /api/appointments/:id - Update/reschedule appointment
+router.put('/:id', verifyToken, async (req, res) => {
+  try {
+    const { date, time, reason, notes } = req.body;
+
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // Check if appointment is not already completed or cancelled
+    if (appointment.status === 'completed') {
+      return res.status(400).json({ error: 'Cannot update completed appointment' });
+    }
+
+    // Update fields if provided
+    if (date !== undefined) appointment.date = date;
+    if (time !== undefined) appointment.time = time;
+    if (reason !== undefined) appointment.reason = reason;
+    if (notes !== undefined) appointment.notes = notes;
+
+    await appointment.save();
+
+    res.json({
+      message: 'Appointment updated successfully',
+      appointment: {
+        id: appointment._id,
+        userId: appointment.userId,
+        centerId: appointment.centerId,
+        centerName: appointment.centerName,
+        date: appointment.date,
+        time: appointment.time,
+        reason: appointment.reason,
+        notes: appointment.notes,
+        status: appointment.status,
+        updatedAt: appointment.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error updating appointment:', error);
+    res.status(500).json({ error: 'Failed to update appointment' });
+  }
+});
+
+// GET /api/appointments/slots/:centerId/:date - Get available slots for a center on a date
+router.get('/slots/:centerId/:date', async (req, res) => {
+  try {
+    const { centerId, date } = req.params;
+
+    // Check if the center exists
+    const center = HOSPITALS_DATA.find(h => h.id.toString() === centerId.toString());
+    if (!center) {
+      return res.status(404).json({ error: 'Health center not found' });
+    }
+
+    // Get existing appointments for this center and date
+    const existingAppointments = await Appointment.find({
+      centerId,
+      date,
+      status: { $ne: 'cancelled' } // Exclude cancelled appointments
+    }).select('time');
+
+    const bookedTimes = existingAppointments.map(apt => apt.time);
+
+    // Generate all possible slots
+    const allSlots = [
+      '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
+      '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
+    ];
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
+
+    res.json({
+      slots: availableSlots,
+      centerId,
+      date,
+      centerName: center.name,
+      totalSlots: allSlots.length,
+      availableCount: availableSlots.length,
+      bookedCount: bookedTimes.length
+    });
+  } catch (error) {
+    console.error('Error fetching appointment slots:', error);
+    res.status(500).json({ error: 'Failed to fetch appointment slots' });
+  }
+});
+
+// GET /api/appointments/:id - Get single appointment details
+router.get('/:id', verifyToken, async (req, res) => {
+  try {
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      userId: req.userId,
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    res.json({
+      appointment: {
+        id: appointment._id,
+        userId: appointment.userId,
+        centerId: appointment.centerId,
+        centerName: appointment.centerName,
+        date: appointment.date,
+        time: appointment.time,
+        reason: appointment.reason,
+        notes: appointment.notes,
+        status: appointment.status,
+        createdAt: appointment.createdAt,
+        updatedAt: appointment.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching appointment:', error);
+    res.status(500).json({ error: 'Failed to fetch appointment' });
+  }
+});
+
 module.exports = router;

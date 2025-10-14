@@ -77,44 +77,20 @@ const { generalLimiter, authLimiter, adminLimiter, chatLimiter } = require('./mi
 app.use(generalLimiter);
 
 // Routes
-app.use('/api/auth', require('./routes/auth'));
 const authRoutes = require("./routes/auth");
 const healthRoutes = require("./routes/health");
 const chatRoutes = require("./routes/chat");
 const adminRoutes = require("./routes/admin");
 const pregnancyRoutes = require("./routes/pregnancy");
 const appointmentRoutes = require("./routes/appointments");
-const { HOSPITALS_DATA } = require('./data/hospitals');
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api", healthRoutes);
 app.use("/api/chat", chatLimiter, chatRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/pregnancy", pregnancyRoutes);
+// Alias route for backward compatibility with frontend
+app.use("/api/pregnancy-info", pregnancyRoutes);
 app.use("/api/appointments", authLimiter, appointmentRoutes);
-
-// Add slots endpoint without auth (for fetching available slots)
-app.get("/api/appointments/slots/:centerId/:date", (req, res) => {
-  const { centerId, date } = req.params;
-
-  // Check if the center exists
-  const center = HOSPITALS_DATA.find(h => h.id.toString() === centerId.toString());
-  if (!center) {
-    return res.status(404).json({ error: 'Health center not found' });
-  }
-
-  // Generate available slots (mock data - in production, check existing appointments)
-  const slots = [
-    '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-    '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-  ];
-
-  res.json({
-    slots,
-    centerId,
-    date,
-    centerName: center.name,
-  });
-});
 
 // Health check endpoint
 app.get("/health", (req, res) => {
