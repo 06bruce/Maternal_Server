@@ -268,28 +268,21 @@ router.post(
       const resetToken = user.getResetPasswordToken();
       await user.save({ validateBeforeSave: false });
 
-      // Send password reset email
-      const emailResult = await sendPasswordResetEmail({
+      // Send password reset email asynchronously (don't wait for it to complete)
+      sendPasswordResetEmail({
         to: user.email,
         name: user.name,
         resetToken
+      }).catch(err => {
+        console.error('Failed to send password reset email:', err);
+        // Note: We don't clear the token here because the user might still use it
+        // The token will expire after 1 hour anyway
       });
 
-      if (!emailResult.success) {
-        // If email fails, clear the reset token
-        user.resetPasswordToken = undefined;
-        user.resetPasswordExpire = undefined;
-        await user.save({ validateBeforeSave: false });
-
-        return res.status(500).json({
-          success: false,
-          message: 'Failed to send password reset email. Please try again later.'
-        });
-      }
-
+      // Respond immediately to user
       res.status(200).json({
         success: true,
-        message: 'Password reset link has been sent to your email.'
+        message: 'If an account with that email exists, a password reset link has been sent.'
       });
 
     } catch (error) {
