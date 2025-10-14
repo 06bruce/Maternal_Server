@@ -1,0 +1,24 @@
+====================================
+RENDER ENVIRONMENT VARIABLES
+Copy these to your Render Dashboard
+====================================
+
+Go to: https://dashboard.render.com/
+Select: maternal-server
+Click: Environment tab
+Add these variables:
+
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=maternalhub1@gmail.com
+EMAIL_PASSWORD=zqhk kyps vqly bocp
+EMAIL_FROM_NAME=Maternal Health Platform
+FRONTEND_URL=https://maternalhub.vercel.app
+
+====================================
+After adding all variables:
+1. Click "Save Changes"
+2. Wait 2-3 minutes for deployment
+3. Test forgot password feature
+====================================
