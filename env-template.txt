@@ -1,0 +1,24 @@
+# Copy this file to .env and update the values
+# Database
+MONGODB_URI=mongodb://localhost:27017/maternal_health
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Chatbase API
+CHATBASE_API_KEY=your-chatbase-api-key
+CHATBASE_BOT_ID=your-chatbase-bot-id
+
+# Email Configuration
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_SECURE=false
+EMAIL_USER=maternalhub1@gmail.com
+EMAIL_PASSWORD=zqhk kyps vqly bocp
+EMAIL_FROM_NAME=Maternal Health Platform
+
+# Frontend URL
+FRONTEND_URL=http://localhost:3000
+
+# Environment
+NODE_ENV=development

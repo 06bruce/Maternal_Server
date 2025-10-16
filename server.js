@@ -19,6 +19,21 @@ if (missingEnvVars.length > 0) {
   process.exit(1);
 }
 
+// Check email configuration
+const emailVars = ['EMAIL_HOST', 'EMAIL_USER', 'EMAIL_PASSWORD'];
+const missingEmailVars = emailVars.filter(envVar => !process.env[envVar]);
+
+if (missingEmailVars.length > 0) {
+  console.warn('⚠️  Email service not fully configured. Missing:', missingEmailVars.join(', '));
+  console.warn('💡 Email features (welcome emails, password reset) will be disabled');
+  console.warn('💡 To enable email features, set EMAIL_HOST, EMAIL_USER, and EMAIL_PASSWORD');
+} else {
+  console.log('✅ Email service configured');
+  console.log(`📧 Email Host: ${process.env.EMAIL_HOST}`);
+  console.log(`📧 Email User: ${process.env.EMAIL_USER}`);
+  console.log(`📧 From Name: ${process.env.EMAIL_FROM_NAME || 'Maternal Health Platform'}`);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 

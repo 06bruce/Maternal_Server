@@ -4,20 +4,37 @@ const nodemailer = require('nodemailer');
 // Create reusable transporter
 const createTransporter = () => {
   // Check if email service is configured
-  if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD) {
-    console.warn('Email service not configured. Please set EMAIL_HOST, EMAIL_USER, and EMAIL_PASSWORD in .env');
+  const requiredVars = ['EMAIL_HOST', 'EMAIL_USER', 'EMAIL_PASSWORD'];
+  const missingVars = requiredVars.filter(varName => !process.env[varName]);
+  
+  if (missingVars.length > 0) {
+    console.error('❌ Email service not configured. Missing variables:', missingVars.join(', '));
+    console.error('💡 Please set EMAIL_HOST, EMAIL_USER, and EMAIL_PASSWORD in environment variables');
     return null;
   }
 
-  return nodemailer.createTransport({
+  console.log('📧 Email service configured:', {
+    host: process.env.EMAIL_HOST,
+    port: process.env.EMAIL_PORT || 587,
+    user: process.env.EMAIL_USER,
+    secure: process.env.EMAIL_SECURE === 'true'
+  });
+
+  const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
     port: parseInt(process.env.EMAIL_PORT) || 587,
     secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
-    }
+    },
+    // Add connection timeout and other options for better reliability
+    connectionTimeout: 60000, // 60 seconds
+    greetingTimeout: 30000,   // 30 seconds
+    socketTimeout: 60000      // 60 seconds
   });
+
+  return transporter;
 };
 
 /**
@@ -102,12 +119,33 @@ const sendWelcomeEmail = async ({ to, name }) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Welcome email sent to ${to}`);
-    return { success: true, message: 'Welcome email sent successfully' };
+    // Verify connection before sending
+    await transporter.verify();
+    console.log('✅ SMTP connection verified for welcome email');
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Welcome email sent successfully to ${to}`);
+    console.log('📧 Message ID:', info.messageId);
+    return { success: true, message: 'Welcome email sent successfully', messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending welcome email:', error);
-    return { success: false, message: 'Failed to send welcome email', error: error.message };
+    console.error('❌ Error sending welcome email to', to);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response
+    });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to send welcome email';
+    if (error.message.includes('Invalid login')) {
+      errorMessage = 'Email authentication failed - check credentials';
+    } else if (error.message.includes('ECONNREFUSED')) {
+      errorMessage = 'Cannot connect to email server';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Email server timeout';
+    }
+    
+    return { success: false, message: errorMessage, error: error.message };
   }
 };
 
@@ -196,12 +234,34 @@ const sendPasswordResetEmail = async ({ to, name, resetToken }) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Password reset email sent to ${to}`);
-    return { success: true, message: 'Password reset email sent successfully' };
+    // Verify connection before sending
+    await transporter.verify();
+    console.log('✅ SMTP connection verified for password reset email');
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset email sent successfully to ${to}`);
+    console.log('📧 Message ID:', info.messageId);
+    console.log('🔗 Reset URL:', resetUrl);
+    return { success: true, message: 'Password reset email sent successfully', messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending password reset email:', error);
-    return { success: false, message: 'Failed to send password reset email', error: error.message };
+    console.error('❌ Error sending password reset email to', to);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response
+    });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to send password reset email';
+    if (error.message.includes('Invalid login')) {
+      errorMessage = 'Email authentication failed - check credentials';
+    } else if (error.message.includes('ECONNREFUSED')) {
+      errorMessage = 'Cannot connect to email server';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Email server timeout';
+    }
+    
+    return { success: false, message: errorMessage, error: error.message };
   }
 };
 
@@ -284,12 +344,33 @@ const sendPasswordResetConfirmation = async ({ to, name }) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
-    console.log(`Password reset confirmation email sent to ${to}`);
-    return { success: true, message: 'Password reset confirmation sent successfully' };
+    // Verify connection before sending
+    await transporter.verify();
+    console.log('✅ SMTP connection verified for confirmation email');
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`✅ Password reset confirmation email sent successfully to ${to}`);
+    console.log('📧 Message ID:', info.messageId);
+    return { success: true, message: 'Password reset confirmation sent successfully', messageId: info.messageId };
   } catch (error) {
-    console.error('Error sending password reset confirmation:', error);
-    return { success: false, message: 'Failed to send confirmation email', error: error.message };
+    console.error('❌ Error sending password reset confirmation to', to);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      response: error.response
+    });
+    
+    // Provide more specific error messages
+    let errorMessage = 'Failed to send confirmation email';
+    if (error.message.includes('Invalid login')) {
+      errorMessage = 'Email authentication failed - check credentials';
+    } else if (error.message.includes('ECONNREFUSED')) {
+      errorMessage = 'Cannot connect to email server';
+    } else if (error.message.includes('timeout')) {
+      errorMessage = 'Email server timeout';
+    }
+    
+    return { success: false, message: errorMessage, error: error.message };
   }
 };
 
