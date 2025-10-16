@@ -1,5 +1,6 @@
 // utils/emailService.js
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 
 // Create reusable transporter
 const createTransporter = () => {
@@ -48,6 +49,38 @@ const createTransporter = () => {
   });
 
   return transporter;
+};
+
+// Send via Resend HTTP API as a fallback to SMTP
+const sendViaResend = async ({ to, subject, html, text, fromName }) => {
+  if (!process.env.RESEND_API_KEY || !process.env.EMAIL_FROM) {
+    return { success: false, message: 'Resend not configured' };
+  }
+
+  try {
+    const payload = {
+      from: `${fromName || (process.env.EMAIL_FROM_NAME || 'Maternal Health Platform')} <${process.env.EMAIL_FROM}>`,
+      to: [to],
+      subject,
+      html,
+      text
+    };
+
+    const res = await axios.post('https://api.resend.com/emails', payload, {
+      headers: {
+        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const messageId = res.data?.id || res.headers['x-message-id'];
+    console.log(`✅ Resend email sent to ${to}`, messageId ? `(${messageId})` : '');
+    return { success: true, message: 'Email sent via Resend', messageId };
+  } catch (error) {
+    console.error('❌ Resend send failed:', error.response?.data || error.message);
+    return { success: false, message: 'Resend send failed', error: error.message };
+  }
 };
 
 /**
@@ -158,6 +191,18 @@ const sendWelcomeEmail = async ({ to, name }) => {
       errorMessage = 'Email server timeout';
     }
     
+    // Fallback to Resend if configured
+    if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Resend for welcome email...');
+      return await sendViaResend({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
     return { success: false, message: errorMessage, error: error.message };
   }
 };
@@ -274,6 +319,18 @@ const sendPasswordResetEmail = async ({ to, name, resetToken }) => {
       errorMessage = 'Email server timeout';
     }
     
+    // Fallback to Resend if configured
+    if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Resend for password reset email...');
+      return await sendViaResend({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
     return { success: false, message: errorMessage, error: error.message };
   }
 };
@@ -383,6 +440,18 @@ const sendPasswordResetConfirmation = async ({ to, name }) => {
       errorMessage = 'Email server timeout';
     }
     
+    // Fallback to Resend if configured
+    if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Resend for confirmation email...');
+      return await sendViaResend({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
     return { success: false, message: errorMessage, error: error.message };
   }
 };
