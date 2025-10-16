@@ -24,8 +24,5 @@ FRONTEND_URL=http://localhost:3000
 RESEND_API_KEY=
 EMAIL_FROM=verified_sender@example.com
 
-# Brevo (Sendinblue) - optional fallback
-BREVO_API_KEY=
-
 # Environment
 NODE_ENV=development
