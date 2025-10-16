@@ -20,9 +20,5 @@ EMAIL_FROM_NAME=Maternal Health Platform
 # Frontend URL
 FRONTEND_URL=http://localhost:3000
 
-# Resend (HTTP email provider) - optional fallback to SMTP
-RESEND_API_KEY=
-EMAIL_FROM=verified_sender@example.com
-
 # Environment
 NODE_ENV=development
