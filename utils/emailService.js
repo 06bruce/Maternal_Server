@@ -20,13 +20,10 @@ const createTransporter = () => {
     secure: process.env.EMAIL_SECURE === 'true'
   });
 
-  const useSecure = process.env.EMAIL_SECURE === 'true';
-  const smtpPort = parseInt(process.env.EMAIL_PORT) || (useSecure ? 465 : 587);
-
   const transporter = nodemailer.createTransport({
     host: process.env.EMAIL_HOST,
-    port: smtpPort,
-    secure: useSecure, // true for 465, false for other ports
+    port: parseInt(process.env.EMAIL_PORT) || 587,
+    secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASSWORD
@@ -34,17 +31,7 @@ const createTransporter = () => {
     // Add connection timeout and other options for better reliability
     connectionTimeout: 60000, // 60 seconds
     greetingTimeout: 30000,   // 30 seconds
-    socketTimeout: 60000,     // 60 seconds
-    // Use a pooled connection to improve reliability under load
-    pool: true,
-    // Some platforms prefer IPv4 to avoid IPv6 routing timeouts
-    family: 4,
-    // TLS options
-    requireTLS: !useSecure, // for 587 STARTTLS
-    tls: {
-      servername: process.env.EMAIL_HOST,
-      // allow default CA; do not set rejectUnauthorized=false in prod
-    }
+    socketTimeout: 60000      // 60 seconds
   });
 
   return transporter;
