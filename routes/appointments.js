@@ -4,6 +4,12 @@ const router = express.Router();
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const { HOSPITALS_DATA } = require('../data/hospitals');
+const { 
+  getAvailableSlots, 
+  getAllHospitalSlots, 
+  validateSlot, 
+  getSlotInfo 
+} = require('../data/slots');
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -36,6 +42,48 @@ router.post('/', verifyToken, async (req, res) => {
     const center = HOSPITALS_DATA.find(h => h.id.toString() === centerId.toString());
     if (!center) {
       return res.status(404).json({ error: 'Health center not found' });
+    }
+
+    // Validate appointment reason
+    const validReasons = ['prenatal', 'postpartum', 'vaccination', 'mental_health', 'emergency', 'therapy'];
+    if (!validReasons.includes(reason)) {
+      return res.status(400).json({ 
+        error: 'Invalid appointment reason',
+        validReasons: validReasons
+      });
+    }
+
+    // Check for existing appointment at the same time and center
+    const existingAppointment = await Appointment.findOne({
+      centerId,
+      date,
+      time,
+      status: { $ne: 'cancelled' }
+    });
+
+    if (existingAppointment) {
+      return res.status(409).json({ 
+        error: 'This time slot is already booked',
+        suggestedAction: 'Please choose a different time slot'
+      });
+    }
+
+    // Validate slot availability using the new slots system
+    const bookedSlots = await Appointment.find({
+      centerId,
+      date,
+      status: { $ne: 'cancelled' }
+    }).select('time');
+    
+    const bookedTimes = bookedSlots.map(apt => apt.time);
+    const slotValidation = validateSlot(time, reason, centerId, bookedTimes);
+    
+    if (!slotValidation.isValid) {
+      return res.status(400).json({
+        error: 'Selected time slot is not available for this appointment type',
+        availableSlots: slotValidation.availableSlots.slice(0, 10), // Show first 10 available slots
+        slotInfo: getSlotInfo(reason)
+      });
     }
 
     // Create new appointment
@@ -159,6 +207,7 @@ router.put('/:id', verifyToken, async (req, res) => {
 router.get('/slots/:centerId/:date', async (req, res) => {
   try {
     const { centerId, date } = req.params;
+    const { appointmentType } = req.query; // Optional: filter by appointment type
 
     // Check if the center exists
     const center = HOSPITALS_DATA.find(h => h.id.toString() === centerId.toString());
@@ -171,31 +220,67 @@ router.get('/slots/:centerId/:date', async (req, res) => {
       centerId,
       date,
       status: { $ne: 'cancelled' } // Exclude cancelled appointments
-    }).select('time');
+    }).select('time reason');
 
     const bookedTimes = existingAppointments.map(apt => apt.time);
 
-    // Generate all possible slots
-    const allSlots = [
-      '09:00', '09:30', '10:00', '10:30', '11:00', '11:30',
-      '14:00', '14:30', '15:00', '15:30', '16:00', '16:30',
-    ];
+    // Get all possible slots based on appointment type or general slots
+    let availableSlots;
+    let slotInfo = null;
+    
+    if (appointmentType) {
+      // Get slots specific to appointment type
+      availableSlots = getAvailableSlots(appointmentType, centerId, bookedTimes);
+      slotInfo = getSlotInfo(appointmentType);
+    } else {
+      // Get all general slots for the hospital
+      availableSlots = getAllHospitalSlots(centerId).filter(slot => !bookedTimes.includes(slot));
+    }
 
-    // Filter out booked slots
-    const availableSlots = allSlots.filter(slot => !bookedTimes.includes(slot));
+    // Sort slots chronologically
+    availableSlots.sort();
 
     res.json({
       slots: availableSlots,
       centerId,
       date,
       centerName: center.name,
-      totalSlots: allSlots.length,
+      appointmentType: appointmentType || 'general',
+      slotInfo,
+      totalSlots: getAllHospitalSlots(centerId).length,
       availableCount: availableSlots.length,
-      bookedCount: bookedTimes.length
+      bookedCount: bookedTimes.length,
+      workingHours: {
+        start: '09:00',
+        end: '16:30',
+        weekendAvailable: centerId === '1' || centerId === '3' || centerId === '6' // Major hospitals
+      }
     });
   } catch (error) {
     console.error('Error fetching appointment slots:', error);
     res.status(500).json({ error: 'Failed to fetch appointment slots' });
+  }
+});
+
+// GET /api/appointments/types - Get available appointment types and their slot information
+router.get('/types', async (req, res) => {
+  try {
+    const { APPOINTMENT_TYPE_SLOTS } = require('../data/slots');
+    
+    const appointmentTypes = Object.keys(APPOINTMENT_TYPE_SLOTS).map(type => ({
+      type,
+      ...getSlotInfo(type),
+      availableSlots: APPOINTMENT_TYPE_SLOTS[type].slots
+    }));
+
+    res.json({
+      appointmentTypes,
+      totalTypes: appointmentTypes.length,
+      message: 'Available appointment types with their slot configurations'
+    });
+  } catch (error) {
+    console.error('Error fetching appointment types:', error);
+    res.status(500).json({ error: 'Failed to fetch appointment types' });
   }
 });
 

@@ -1,4 +1,4 @@
-const { getAllHospitals, getHospitalsBySector, searchHospitals } = require('../data/hospitals');
+const { getAllHospitals, getHospitalsBySector, searchHospitals, getNearestHospitals } = require('../data/hospitals');
 
 /**
  * Get health centers
@@ -43,6 +43,66 @@ const getHealthCentersBySector = (req, res) => {
 };
 
 /**
+ * Get nearest health centers by GPS coordinates
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const getNearestHealthCenters = (req, res) => {
+  try {
+    const { latitude, longitude, limit } = req.body;
+    
+    // Validate required parameters
+    if (!latitude || !longitude) {
+      return res.status(400).json({ 
+        message: 'Latitude and longitude are required',
+        error: 'Missing coordinates'
+      });
+    }
+
+    // Validate coordinate values
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    
+    if (isNaN(lat) || isNaN(lng)) {
+      return res.status(400).json({ 
+        message: 'Invalid latitude or longitude values',
+        error: 'Invalid coordinates'
+      });
+    }
+
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ 
+        message: 'Coordinates are out of valid range',
+        error: 'Invalid coordinate range'
+      });
+    }
+
+    const maxLimit = limit ? Math.min(parseInt(limit), 20) : 10;
+    const hospitals = getNearestHospitals(lat, lng, maxLimit);
+    
+    if (hospitals.length === 0) {
+      return res.status(404).json({ 
+        message: 'No nearby hospitals found',
+        hospitals: []
+      });
+    }
+
+    res.json({
+      message: `Found ${hospitals.length} nearby hospitals`,
+      count: hospitals.length,
+      userLocation: { latitude: lat, longitude: lng },
+      hospitals
+    });
+  } catch (error) {
+    console.error('Error fetching nearest health centers:', error);
+    res.status(500).json({ 
+      message: 'Failed to fetch nearest health centers',
+      error: error.message 
+    });
+  }
+};
+
+/**
  * Get emergency contacts
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
@@ -72,5 +132,6 @@ const getEmergencyContacts = (req, res) => {
 module.exports = {
   getHealthCenters,
   getHealthCentersBySector,
+  getNearestHealthCenters,
   getEmergencyContacts,
 };

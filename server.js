@@ -51,8 +51,6 @@ const allowedOrigins = [
   'http://localhost:3000',
   'http://localhost:3001',
   'https://maternalhub.vercel.app',
-  'https://maternal-hub.vercel.app',
-  'https://maternalhub-git-main-06bruce.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
