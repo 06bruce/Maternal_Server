@@ -135,16 +135,7 @@ router.post(
 
       // Send welcome email (don't wait for it to complete)
       sendWelcomeEmail({ to: user.email, name: user.name })
-        .then(result => {
-          if (result.success) {
-            console.log(`✅ Welcome email sent to ${user.email}:`, result.messageId);
-          } else {
-            console.error(`❌ Failed to send welcome email to ${user.email}:`, result.message);
-          }
-        })
-        .catch(err => {
-          console.error('❌ Critical error sending welcome email to', user.email, ':', err.message);
-        });
+        .catch(err => console.error('Failed to send welcome email:', err));
 
       res.status(201).json({
         success: true,
@@ -282,14 +273,8 @@ router.post(
         to: user.email,
         name: user.name,
         resetToken
-      }).then(result => {
-        if (result.success) {
-          console.log(`✅ Password reset email sent to ${user.email}:`, result.messageId);
-        } else {
-          console.error(`❌ Failed to send password reset email to ${user.email}:`, result.message);
-        }
       }).catch(err => {
-        console.error('❌ Critical error sending password reset email to', user.email, ':', err.message);
+        console.error('Failed to send password reset email:', err);
         // Note: We don't clear the token here because the user might still use it
         // The token will expire after 1 hour anyway
       });
@@ -355,16 +340,7 @@ router.post(
 
       // Send confirmation email
       sendPasswordResetConfirmation({ to: user.email, name: user.name })
-        .then(result => {
-          if (result.success) {
-            console.log(`✅ Password reset confirmation sent to ${user.email}:`, result.messageId);
-          } else {
-            console.error(`❌ Failed to send confirmation email to ${user.email}:`, result.message);
-          }
-        })
-        .catch(err => {
-          console.error('❌ Critical error sending confirmation email to', user.email, ':', err.message);
-        });
+        .catch(err => console.error('Failed to send confirmation email:', err));
 
       // Generate new JWT token
       const jwtToken = generateToken(user._id);
