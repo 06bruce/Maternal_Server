@@ -83,6 +83,42 @@ const sendViaResend = async ({ to, subject, html, text, fromName }) => {
   }
 };
 
+// Send via Brevo (Sendinblue) HTTP API as a secondary fallback
+const sendViaBrevo = async ({ to, subject, html, text, fromName }) => {
+  if (!process.env.BREVO_API_KEY || !process.env.EMAIL_FROM) {
+    return { success: false, message: 'Brevo not configured' };
+  }
+
+  try {
+    const payload = {
+      sender: {
+        email: process.env.EMAIL_FROM,
+        name: fromName || (process.env.EMAIL_FROM_NAME || 'Maternal Health Platform')
+      },
+      to: [{ email: to }],
+      subject,
+      htmlContent: html,
+      textContent: text
+    };
+
+    const res = await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        'accept': 'application/json'
+      },
+      timeout: 30000
+    });
+
+    const messageId = res.data?.messageId || res.headers['x-mailin-message-id'];
+    console.log(`✅ Brevo email sent to ${to}`, messageId ? `(${messageId})` : '');
+    return { success: true, message: 'Email sent via Brevo', messageId };
+  } catch (error) {
+    console.error('❌ Brevo send failed:', error.response?.data || error.message);
+    return { success: false, message: 'Brevo send failed', error: error.message };
+  }
+};
+
 /**
  * Send welcome email to newly registered user
  * @param {Object} options - Email options
@@ -195,6 +231,17 @@ const sendWelcomeEmail = async ({ to, name }) => {
     if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
       console.log('↪️  Falling back to Resend for welcome email...');
       return await sendViaResend({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
+    if (process.env.BREVO_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Brevo for welcome email...');
+      return await sendViaBrevo({
         to,
         subject: mailOptions.subject,
         html: mailOptions.html,
@@ -331,6 +378,17 @@ const sendPasswordResetEmail = async ({ to, name, resetToken }) => {
       });
     }
 
+    if (process.env.BREVO_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Brevo for password reset email...');
+      return await sendViaBrevo({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
     return { success: false, message: errorMessage, error: error.message };
   }
 };
@@ -444,6 +502,17 @@ const sendPasswordResetConfirmation = async ({ to, name }) => {
     if (process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
       console.log('↪️  Falling back to Resend for confirmation email...');
       return await sendViaResend({
+        to,
+        subject: mailOptions.subject,
+        html: mailOptions.html,
+        text: mailOptions.text,
+        fromName: process.env.EMAIL_FROM_NAME
+      });
+    }
+
+    if (process.env.BREVO_API_KEY && process.env.EMAIL_FROM) {
+      console.log('↪️  Falling back to Brevo for confirmation email...');
+      return await sendViaBrevo({
         to,
         subject: mailOptions.subject,
         html: mailOptions.html,
