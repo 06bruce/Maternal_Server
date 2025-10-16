@@ -37,6 +37,9 @@ if (missingEmailVars.length > 0) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Behind a proxy (Render/Cloudflare) so trust X-Forwarded-* headers
+app.set('trust proxy', 1);
+
 // Connect to MongoDB
 if (process.env.MONGODB_URI) {
   mongoose
