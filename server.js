@@ -81,6 +81,7 @@ const chatRoutes = require("./routes/chat");
 const adminRoutes = require("./routes/admin");
 const pregnancyRoutes = require("./routes/pregnancy");
 const appointmentRoutes = require("./routes/appointments");
+const emergencyRoutes = require("./routes/emergency");
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api", healthRoutes);
 app.use("/api/chat", chatLimiter, chatRoutes);
@@ -89,6 +90,7 @@ app.use("/api/pregnancy", pregnancyRoutes);
 // Alias route for backward compatibility with frontend
 app.use("/api/pregnancy-info", pregnancyRoutes);
 app.use("/api/appointments", authLimiter, appointmentRoutes);
+app.use("/api/emergency", authLimiter, emergencyRoutes);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
