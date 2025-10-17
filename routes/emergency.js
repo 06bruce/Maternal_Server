@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticateToken } = require('../middleware/authMiddleware');
+const { protect } = require('../middleware/auth');
 const HOSPITALS = require('../data/hospitals');
 
 // Calculate distance between two coordinates (Haversine formula)
@@ -45,7 +45,7 @@ function findNearestHospitals(userLocation, count = 3) {
 const activeEmergencies = new Map();
 
 // Send emergency alert
-router.post('/alert', authenticateToken, async (req, res) => {
+router.post('/alert', protect, async (req, res) => {
   try {
     const { userData, location } = req.body;
     const userId = req.user.id;
@@ -122,7 +122,7 @@ router.post('/alert', authenticateToken, async (req, res) => {
 });
 
 // Get emergency status
-router.get('/:emergencyId', authenticateToken, async (req, res) => {
+router.get('/:emergencyId', protect, async (req, res) => {
   try {
     const { emergencyId } = req.params;
     const emergency = activeEmergencies.get(emergencyId);
@@ -158,7 +158,7 @@ router.get('/:emergencyId', authenticateToken, async (req, res) => {
 });
 
 // Cancel emergency
-router.delete('/:emergencyId', authenticateToken, async (req, res) => {
+router.delete('/:emergencyId', protect, async (req, res) => {
   try {
     const { emergencyId } = req.params;
     const emergency = activeEmergencies.get(emergencyId);
