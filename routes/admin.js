@@ -5,6 +5,7 @@ const { body, validationResult } = require('express-validator');
 const Admin = require('../models/Admin');
 const User = require('../models/User');
 const Appointment = require('../models/Appointment');
+const Emergency = require('../models/Emergency');
 
 // Middleware to verify admin token
 const verifyAdminToken = async (req, res, next) => {
@@ -246,6 +247,18 @@ router.get('/analytics', verifyAdminToken, async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const activeUsers = await User.countDocuments({ lastLogin: { $gte: sevenDaysAgo } });
 
+    // Get emergency statistics
+    const totalEmergencies = await Emergency.countDocuments();
+    const pendingEmergencies = await Emergency.countDocuments({ status: 'pending' });
+    const respondedEmergencies = await Emergency.countDocuments({ status: 'responded' });
+    const resolvedEmergencies = await Emergency.countDocuments({ status: 'resolved' });
+    const cancelledEmergencies = await Emergency.countDocuments({ status: 'cancelled' });
+    
+    // Get recent emergencies (last 24 hours)
+    const oneDayAgo = new Date();
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    const recentEmergencies = await Emergency.countDocuments({ createdAt: { $gte: oneDayAgo } });
+
     res.json({
       success: true,
       analytics: {
@@ -264,6 +277,14 @@ router.get('/analytics', verifyAdminToken, async (req, res) => {
         userActivity: {
           newUsers,
           activeUsers
+        },
+        emergencyStats: {
+          total: totalEmergencies,
+          pending: pendingEmergencies,
+          responded: respondedEmergencies,
+          resolved: resolvedEmergencies,
+          cancelled: cancelledEmergencies,
+          last24Hours: recentEmergencies
         }
       }
     });
@@ -643,6 +664,191 @@ router.delete('/appointments/:id', verifyAdminToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Server error deleting appointment'
+    });
+  }
+});
+
+// Get all emergencies with pagination and filters
+router.get('/emergencies', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canViewUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view emergencies'
+      });
+    }
+
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Build filter
+    const filter = {};
+    if (req.query.status) filter.status = req.query.status;
+    if (req.query.userId) filter.userId = req.query.userId;
+
+    const emergencies = await Emergency.find(filter)
+      .populate('userId', 'name email phone')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const total = await Emergency.countDocuments(filter);
+
+    // Get status counts for analytics
+    const statusCounts = await Emergency.aggregate([
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const stats = {
+      total,
+      pending: statusCounts.find(s => s._id === 'pending')?.count || 0,
+      responded: statusCounts.find(s => s._id === 'responded')?.count || 0,
+      resolved: statusCounts.find(s => s._id === 'resolved')?.count || 0,
+      cancelled: statusCounts.find(s => s._id === 'cancelled')?.count || 0
+    };
+
+    res.json({
+      success: true,
+      emergencies,
+      stats,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(total / limit),
+        totalEmergencies: total,
+        emergenciesPerPage: limit
+      }
+    });
+
+  } catch (error) {
+    console.error('Get emergencies error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching emergencies'
+    });
+  }
+});
+
+// Get single emergency details
+router.get('/emergencies/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canViewUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to view emergencies'
+      });
+    }
+
+    const emergency = await Emergency.findById(req.params.id)
+      .populate('userId', 'name email phone gender age');
+
+    if (!emergency) {
+      return res.status(404).json({
+        success: false,
+        message: 'Emergency not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      emergency
+    });
+
+  } catch (error) {
+    console.error('Get emergency error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error fetching emergency'
+    });
+  }
+});
+
+// Update emergency status (admin can resolve emergencies)
+router.put('/emergencies/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canEditUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to edit emergencies'
+      });
+    }
+
+    const { status, notes } = req.body;
+
+    const emergency = await Emergency.findById(req.params.id);
+
+    if (!emergency) {
+      return res.status(404).json({
+        success: false,
+        message: 'Emergency not found'
+      });
+    }
+
+    if (status) {
+      emergency.status = status;
+      if (status === 'resolved') {
+        emergency.resolvedAt = new Date();
+      }
+    }
+
+    if (notes) {
+      emergency.notes = notes;
+    }
+
+    await emergency.save();
+
+    const updatedEmergency = await Emergency.findById(req.params.id)
+      .populate('userId', 'name email phone');
+
+    res.json({
+      success: true,
+      message: 'Emergency updated successfully',
+      emergency: updatedEmergency
+    });
+
+  } catch (error) {
+    console.error('Update emergency error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error updating emergency'
+    });
+  }
+});
+
+// Delete emergency (admin can delete old/resolved emergencies)
+router.delete('/emergencies/:id', verifyAdminToken, async (req, res) => {
+  try {
+    if (!req.admin.permissions.canDeleteUsers) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to delete emergencies'
+      });
+    }
+
+    const emergency = await Emergency.findByIdAndDelete(req.params.id);
+
+    if (!emergency) {
+      return res.status(404).json({
+        success: false,
+        message: 'Emergency not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Emergency deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('Delete emergency error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error deleting emergency'
     });
   }
 });

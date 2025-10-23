@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
 const HOSPITALS = require('../data/hospitals');
+const Emergency = require('../models/Emergency');
 
 // Calculate distance between two coordinates (Haversine formula)
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -41,8 +42,7 @@ function findNearestHospitals(userLocation, count = 3) {
   return hospitalsWithDistance.slice(0, count);
 }
 
-// Store for active emergencies (in production, use database)
-const activeEmergencies = new Map();
+// Emergencies are now stored in MongoDB via Emergency model
 
 // Send emergency alert
 router.post('/alert', protect, async (req, res) => {
@@ -70,25 +70,30 @@ router.post('/alert', protect, async (req, res) => {
 
     // Create emergency record
     const emergencyId = `EMG-${Date.now()}-${userId}`;
-    const emergency = {
-      id: emergencyId,
+    
+    // Store emergency in database
+    const emergency = await Emergency.create({
+      emergencyId,
       userId,
       userData: {
         name: userData.name,
         phone: userData.phone,
         email: userData.email || 'N/A',
-        age: userData.age || 'N/A',
+        age: userData.age || null,
         gender: userData.gender || 'N/A',
       },
       location: location || null,
-      hospitals: nearestHospitals,
-      alertedAt: new Date().toISOString(),
-      status: 'pending',
-      respondedHospital: null,
-    };
-
-    // Store emergency
-    activeEmergencies.set(emergencyId, emergency);
+      hospitals: nearestHospitals.map(h => ({
+        hospitalId: h.id,
+        name: h.name,
+        phone: h.phone,
+        emergencyPhone: h.emergencyPhone,
+        distance: h.distance,
+        coordinates: h.coordinates,
+        services: h.services
+      })),
+      status: 'pending'
+    });
 
     console.log(`🚨 EMERGENCY ALERT SENT - ID: ${emergencyId}`);
     console.log(`   Patient: ${userData.name} (${userData.phone})`);
@@ -97,11 +102,10 @@ router.post('/alert', protect, async (req, res) => {
       console.log(`     ${index + 1}. ${hospital.name} - ${hospital.emergencyPhone}`);
     });
 
-    // In production, here you would:
-    // 1. Send SMS to hospitals
-    // 2. Send notifications to hospital systems
-    // 3. Log in database
-    // 4. Set up WebSocket for real-time updates
+    // TODO: In production, implement:
+    // 1. Send SMS to hospitals (Africa's Talking/Twilio)
+    // 2. Send push notifications to hospital systems
+    // 3. WebSocket/Socket.io for real-time updates to user
 
     res.status(200).json({
       success: true,
@@ -125,7 +129,7 @@ router.post('/alert', protect, async (req, res) => {
 router.get('/:emergencyId', protect, async (req, res) => {
   try {
     const { emergencyId } = req.params;
-    const emergency = activeEmergencies.get(emergencyId);
+    const emergency = await Emergency.findOne({ emergencyId });
 
     if (!emergency) {
       return res.status(404).json({
@@ -135,7 +139,7 @@ router.get('/:emergencyId', protect, async (req, res) => {
     }
 
     // Check if user owns this emergency
-    if (emergency.userId !== req.user.id) {
+    if (emergency.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
@@ -161,7 +165,7 @@ router.get('/:emergencyId', protect, async (req, res) => {
 router.delete('/:emergencyId', protect, async (req, res) => {
   try {
     const { emergencyId } = req.params;
-    const emergency = activeEmergencies.get(emergencyId);
+    const emergency = await Emergency.findOne({ emergencyId });
 
     if (!emergency) {
       return res.status(404).json({
@@ -171,17 +175,21 @@ router.delete('/:emergencyId', protect, async (req, res) => {
     }
 
     // Check if user owns this emergency
-    if (emergency.userId !== req.user.id) {
+    if (emergency.userId.toString() !== req.user.id) {
       return res.status(403).json({
         success: false,
         message: 'Unauthorized'
       });
     }
 
-    // Remove emergency
-    activeEmergencies.delete(emergencyId);
+    // Update emergency status to cancelled
+    emergency.status = 'cancelled';
+    emergency.cancelledAt = new Date();
+    await emergency.save();
 
     console.log(`✅ EMERGENCY CANCELLED - ID: ${emergencyId}`);
+
+    // TODO: Notify hospitals that emergency was cancelled
 
     res.status(200).json({
       success: true,
@@ -199,12 +207,13 @@ router.delete('/:emergencyId', protect, async (req, res) => {
 });
 
 // Hospital response endpoint (for hospitals to mark emergency as responded)
+// TODO: Add hospital authentication before production
 router.post('/:emergencyId/respond', async (req, res) => {
   try {
     const { emergencyId } = req.params;
     const { hospitalId } = req.body;
 
-    const emergency = activeEmergencies.get(emergencyId);
+    const emergency = await Emergency.findOne({ emergencyId });
 
     if (!emergency) {
       return res.status(404).json({
@@ -213,7 +222,7 @@ router.post('/:emergencyId/respond', async (req, res) => {
       });
     }
 
-    const hospital = emergency.hospitals.find(h => h.id === hospitalId);
+    const hospital = emergency.hospitals.find(h => h.hospitalId === hospitalId);
 
     if (!hospital) {
       return res.status(404).json({
@@ -223,16 +232,24 @@ router.post('/:emergencyId/respond', async (req, res) => {
     }
 
     // Mark hospital as responded
-    emergency.respondedHospital = hospital;
+    emergency.respondedHospital = {
+      hospitalId: hospital.hospitalId,
+      name: hospital.name,
+      phone: hospital.phone,
+      emergencyPhone: hospital.emergencyPhone,
+      respondedAt: new Date()
+    };
     emergency.status = 'responded';
-    activeEmergencies.set(emergencyId, emergency);
+    await emergency.save();
 
     console.log(`✅ HOSPITAL RESPONDED - ${hospital.name} responded to ${emergencyId}`);
+
+    // TODO: Send push notification to user via WebSocket/Firebase
 
     res.status(200).json({
       success: true,
       message: 'Hospital response recorded',
-      hospital
+      hospital: emergency.respondedHospital
     });
 
   } catch (error) {
