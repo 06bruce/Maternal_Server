@@ -15,6 +15,7 @@ EMAIL_USER=maternalhub1@gmail.com
 EMAIL_PASSWORD=zqhk kyps vqly bocp
 EMAIL_FROM_NAME=Maternal Health Platform
 FRONTEND_URL=https://maternalhub.vercel.app
+GOOGLE_CLIENT_ID=238219573004-letenot24n7l309j006081lkv63nflnb.apps.googleusercontent.com
 
 ====================================
 After adding all variables:

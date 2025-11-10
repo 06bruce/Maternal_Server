@@ -49,7 +49,6 @@ app.use(morgan("combined"));
 // Configure CORS to accept multiple origins
 const allowedOrigins = [
   'http://localhost:3000',
-  'http://localhost:3001',
   'https://maternalhub.vercel.app',
   process.env.FRONTEND_URL,
 ].filter(Boolean);
@@ -87,6 +86,7 @@ app.use("/api", healthRoutes);
 app.use("/api/chat", chatLimiter, chatRoutes);
 app.use("/api/admin", adminLimiter, adminRoutes);
 app.use("/api/pregnancy", pregnancyRoutes);
+
 // Alias route for backward compatibility with frontend
 app.use("/api/pregnancy-info", pregnancyRoutes);
 app.use("/api/appointments", authLimiter, appointmentRoutes);
@@ -116,7 +116,7 @@ app.use(globalErrorHandler);
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Maternal Health API server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 Health check: http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'https://maternalhub.vercel.app'}`);
   

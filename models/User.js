@@ -20,9 +20,25 @@
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
+      required: function() {
+        // Password is required only for email/password authentication
+        return this.authProvider === 'local' || !this.authProvider;
+      },
       minlength: [6, 'Password must be at least 6 characters'],
       select: false // Don't include password in queries by default
+    },
+    googleId: {
+      type: String,
+      sparse: true, // Allow multiple null values but unique non-null values
+      unique: true
+    },
+    authProvider: {
+      type: String,
+      enum: ['local', 'google'],
+      default: 'local'
+    },
+    profilePicture: {
+      type: String
     },
     phone: {
       type: String,
@@ -31,13 +47,13 @@
     },
     age: {
       type: Number,
-      min: [0, 'Age must be at least 1'],
+      min: [12, 'Age must be at least 1'],
       max: [140, 'Age cannot exceed 100']
     },
     gender: {
       type: String,
       enum: ['male', 'female', 'other', 'prefer_not_to_say'],
-      required: [true, 'Gender is required']
+      default: 'prefer_not_to_say'
     },
     isPregnant: {
       type: Boolean,
@@ -91,13 +107,13 @@
       select: false
     }
   }, {
-    timestamps: true // Adds createdAt and updatedAt fields
+    timestamps: true 
   });
 
   // Hash password before saving
   userSchema.pre('save', async function(next) {
-    // Only hash the password if it has been modified (or is new)
-    if (!this.isModified('password')) return next();
+    // Skip password hashing for Google auth users without password
+    if (!this.password || !this.isModified('password')) return next();
     
     try {
       // Hash password with cost of 12
