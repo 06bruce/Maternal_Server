@@ -6,6 +6,7 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator'); // <-- important
 const router = express.Router();
+const { OAuth2Client } = require('google-auth-library');
 
 // Replace these with your actual paths
 
@@ -15,6 +16,9 @@ const { generateToken } = require('../utils/jwt'); // e.g. ../utils/jwt
 const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmation } = require('../utils/emailService');
 const crypto = require('crypto');
 const { protect } = require('../middleware/auth');
+
+// Initialize Google OAuth client
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // handle validation errors middleware
 function handleValidationErrors(req, res, next) {
@@ -229,6 +233,115 @@ router.post(
   }
 );
 
+// @route   POST /api/auth/google
+// @desc    Google OAuth authentication
+// @access  Public
+router.post(
+  '/google',
+  [
+    body('credential')
+      .notEmpty()
+      .withMessage('Google credential is required'),
+    handleValidationErrors
+  ],
+  async (req, res) => {
+    try {
+      const { credential } = req.body;
+
+      // Verify Google token
+      const ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      const { email, name, picture, sub: googleId, email_verified } = payload;
+
+      // Check if email is verified
+      if (!email_verified) {
+        return res.status(400).json({
+          success: false,
+          message: 'Google email is not verified'
+        });
+      }
+
+      // Find existing user by email or googleId
+      let user = await User.findOne({
+        $or: [
+          { email: email.toLowerCase() },
+          { googleId: googleId }
+        ]
+      });
+
+      if (user) {
+        // Update existing user with Google info if not already set
+        if (!user.googleId) {
+          user.googleId = googleId;
+          user.authProvider = 'google';
+        }
+        if (!user.profilePicture && picture) {
+          user.profilePicture = picture;
+        }
+        user.lastLogin = new Date();
+        await user.save();
+      } else {
+        // Create new user with Google info
+        user = await User.create({
+          name: name || email.split('@')[0],
+          email: email.toLowerCase(),
+          googleId,
+          authProvider: 'google',
+          profilePicture: picture,
+          gender: 'prefer_not_to_say',
+          isPregnant: false,
+          lastLogin: new Date()
+        });
+
+        // Send welcome email (don't wait for it to complete)
+        sendWelcomeEmail({ to: user.email, name: user.name })
+          .catch(err => console.error('Failed to send welcome email:', err));
+      }
+
+      // Generate JWT token
+      const token = generateToken(user._id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Google authentication successful',
+        token,
+        user: user.getProfile ? user.getProfile() : {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          profilePicture: user.profilePicture,
+          isPregnant: user.isPregnant,
+          currentWeek: user.currentWeek,
+          authProvider: user.authProvider
+        }
+      });
+
+    } catch (error) {
+      console.error('Google auth error:', error);
+      
+      if (error.message && error.message.includes('Token used too late')) {
+        return res.status(401).json({
+          success: false,
+          message: 'Google token has expired. Please try again.'
+        });
+      }
+      
+      if (error.name === 'MongooseServerSelectionError' || (error.message && error.message.includes('ECONNREFUSED'))) {
+        return res.status(503).json({ success: false, message: 'Database service unavailable.' });
+      }
+
+      res.status(401).json({
+        success: false,
+        message: 'Invalid Google credentials'
+      });
+    }
+  }
+);
+
 // @route   POST /api/auth/forgot-password
 // @desc    Request password reset
 // @access  Public
@@ -253,6 +366,14 @@ router.post(
         return res.status(200).json({
           success: true,
           message: 'If an account with that email exists, a password reset link has been sent.'
+        });
+      }
+
+      // Check if user signed up with Google OAuth
+      if (user.authProvider === 'google') {
+        return res.status(400).json({
+          success: false,
+          message: 'This account uses Google Sign-In. Please use the "Sign in with Google" button to log in.'
         });
       }
 
