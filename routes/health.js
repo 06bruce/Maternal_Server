@@ -5,6 +5,7 @@ const {
   getNearestHealthCenters,
   getEmergencyContacts 
 } = require('../controllers/healthController');
+
 const { endpointCache } = require('../middleware/cache');
 
 const router = express.Router();

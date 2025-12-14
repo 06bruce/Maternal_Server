@@ -40,6 +40,10 @@ const appointmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  reminderSent: {
+    type: Boolean,
+    default: false,
+  },
   updatedAt: {
     type: Date,
     default: Date.now,
@@ -47,7 +51,7 @@ const appointmentSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-appointmentSchema.pre('save', function(next) {
+appointmentSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
   next();
 });

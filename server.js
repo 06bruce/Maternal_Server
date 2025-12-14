@@ -1,4 +1,5 @@
 const express = require("express");
+const http = require('http');
 const cors = require("cors");
 const helmet = require("helmet");
 const compression = require("compression");
@@ -10,7 +11,7 @@ const jwt = require('jsonwebtoken');
 require("dotenv").config();
 
 // Validate required environment variables
-const requiredEnvVars = ['JWT_SECRET', 'CHATBASE_API_KEY', 'CHATBASE_BOT_ID'];
+const requiredEnvVars = ['JWT_SECRET', 'HUB_CHAT_ID', 'MaternalChat'];
 const missingEnvVars = requiredEnvVars.filter(envVar => !process.env[envVar]);
 
 if (missingEnvVars.length > 0) {
@@ -20,6 +21,7 @@ if (missingEnvVars.length > 0) {
 }
 
 const app = express();
+const server = http.createServer(app);
 const PORT = process.env.PORT || 3001;
 
 // Connect to MongoDB
@@ -54,10 +56,10 @@ const allowedOrigins = [
 ].filter(Boolean);
 
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
+
     if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV === 'development') {
       callback(null, true);
     } else {
@@ -114,17 +116,32 @@ app.use("*", notFound);
 app.use(globalErrorHandler);
 
 // Start server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Maternal Health API server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || "development"}`);
   console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'https://maternalhub.vercel.app'}`);
-  
+
   // Start keep-alive service in production to prevent Render from sleeping
   if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
     const { startKeepAlive } = require('./utils/keepAlive');
     startKeepAlive('https://maternal-server.onrender.com');
   }
+
+  // Start appointment reminder scheduler
+  const { startAppointmentScheduler } = require('./utils/appointmentScheduler');
+  startAppointmentScheduler();
+
+  // Initialize Socket.IO
+  const { initializeSocket } = require('./utils/socketHandler');
+  const allowedOrigins = [
+    'http://localhost:3000',
+    'https://maternalhub.vercel.app',
+    process.env.FRONTEND_URL
+  ].filter(Boolean);
+
+  initializeSocket(server, allowedOrigins);
+  console.log('🔌 Real-time notifications enabled');
 });
 
 module.exports = app;

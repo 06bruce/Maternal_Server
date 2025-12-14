@@ -11,6 +11,7 @@ const HOSPITALS_DATA = [
     location: "Kacyiru, Kigali",
     phone: "3939",
     emergencyPhone: "+250 788 309 000",
+    email: "emergency@kfh.rw",
     hours: "24/7 Emergency Services",
     rating: 4.8,
     services: ["Emergency", "Maternity", "Pediatrics", "Surgery"],
@@ -24,6 +25,7 @@ const HOSPITALS_DATA = [
     location: "Remera, Kigali",
     phone: "+250 252 586 555",
     emergencyPhone: "+250 788 309 001",
+    email: "emergency@kibagabaga.rw",
     hours: "24/7 Emergency Services",
     rating: 4.5,
     services: ["Emergency", "Maternity", "General Medicine"],
@@ -37,6 +39,7 @@ const HOSPITALS_DATA = [
     location: "Kacyiru, Kigali",
     phone: "+250 788 309 002",
     emergencyPhone: "+250 788 309 002",
+    email: "emergency@chuk.rw",
     hours: "24/7 Emergency Services",
     rating: 4.7,
     services: ["Emergency", "Maternity", "Pediatrics", "Surgery", "ICU"],
@@ -52,6 +55,7 @@ const HOSPITALS_DATA = [
     location: "Kanombe, Kigali",
     phone: "4060",
     emergencyPhone: "+250 788 309 003",
+    email: "emergency@rmh.rw",
     hours: "24/7 Emergency Services",
     rating: 4.6,
     services: ["Emergency", "Maternity", "Surgery", "ICU"],
@@ -65,6 +69,7 @@ const HOSPITALS_DATA = [
     location: "Masaka, Kigali",
     phone: "+250 788 309 004",
     emergencyPhone: "+250 788 309 004",
+    email: "emergency@masaka.rw",
     hours: "24/7 Emergency Services",
     rating: 4.3,
     services: ["Emergency", "Maternity", "General Medicine"],
@@ -80,6 +85,7 @@ const HOSPITALS_DATA = [
     location: "Nyarugenge, Kigali",
     phone: "+250 782 749 660",
     emergencyPhone: "+250 788 309 005",
+    email: "emergency@chk.rw",
     hours: "24/7 Emergency Services",
     rating: 4.5,
     services: ["Emergency", "Maternity", "Pediatrics", "Surgery"],
@@ -93,6 +99,7 @@ const HOSPITALS_DATA = [
     location: "Muhima, Kigali",
     phone: "+250 788 309 006",
     emergencyPhone: "+250 788 309 006",
+    email: "emergency@muhima.rw",
     hours: "24/7 Emergency Services",
     rating: 4.4,
     services: ["Emergency", "Maternity", "General Medicine"],
@@ -108,6 +115,7 @@ const HOSPITALS_DATA = [
     location: "Huye, Southern Province",
     phone: "+250 788 309 007",
     emergencyPhone: "+250 788 309 007",
+    email: "emergency@chub.rw",
     hours: "24/7 Emergency Services",
     rating: 4.6,
     services: ["Emergency", "Maternity", "Pediatrics", "Surgery", "ICU"],
@@ -123,6 +131,7 @@ const HOSPITALS_DATA = [
     location: "Gisenyi, Western Province",
     phone: "+250 788 309 008",
     emergencyPhone: "+250 788 309 008",
+    email: "emergency@gisenyi.rw",
     hours: "24/7 Emergency Services",
     rating: 4.4,
     services: ["Emergency", "Maternity", "General Medicine"],
@@ -138,6 +147,7 @@ const HOSPITALS_DATA = [
     location: "Musanze, Northern Province",
     phone: "+250 788 309 009",
     emergencyPhone: "+250 788 309 009",
+    email: "emergency@ruhengeri.rw",
     hours: "24/7 Emergency Services",
     rating: 4.5,
     services: ["Emergency", "Maternity", "Pediatrics", "Surgery"],
@@ -153,6 +163,7 @@ const HOSPITALS_DATA = [
     location: "Rwamagana, Eastern Province",
     phone: "+250 788 309 010",
     emergencyPhone: "+250 788 309 010",
+    email: "emergency@rwamagana.rw",
     hours: "24/7 Emergency Services",
     rating: 4.3,
     services: ["Emergency", "Maternity", "General Medicine"],
@@ -169,14 +180,14 @@ const HOSPITALS_DATA = [
 const getHospitalsBySector = (district, sector) => {
   // Find hospitals in the exact sector
   const exactMatches = HOSPITALS_DATA.filter(
-    h => h.district.toLowerCase() === district.toLowerCase() && 
-         h.sector.toLowerCase() === sector.toLowerCase()
+    h => h.district.toLowerCase() === district.toLowerCase() &&
+      h.sector.toLowerCase() === sector.toLowerCase()
   );
 
   // Find hospitals in the same district (nearby)
   const districtMatches = HOSPITALS_DATA.filter(
     h => h.district.toLowerCase() === district.toLowerCase() &&
-         h.sector.toLowerCase() !== sector.toLowerCase()
+      h.sector.toLowerCase() !== sector.toLowerCase()
   );
 
   // Combine and limit to top 5
@@ -225,7 +236,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   const R = 6371; // Radius of Earth in kilometers
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
     Math.sin(dLon / 2) * Math.sin(dLon / 2);
@@ -250,7 +261,7 @@ const getNearestHospitals = (userLat, userLon, limit = 10) => {
       hospital.coordinates.lat,
       hospital.coordinates.lng
     );
-    
+
     return {
       ...hospital,
       distance: distance.toFixed(1), // Distance in km, rounded to 1 decimal

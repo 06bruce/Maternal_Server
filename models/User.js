@@ -1,161 +1,190 @@
-  const mongoose = require('mongoose');
-  const bcrypt = require('bcryptjs');
-  const crypto = require('crypto');
+const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
-  const userSchema = new mongoose.Schema({
-    name: {
+const userSchema = new mongoose.Schema({
+  name: {
+    type: String,
+    required: [true, 'Name is required'],
+    trim: true,
+    maxlength: [100, 'Name cannot exceed 100 characters'],
+    minlength: [2, 'Name cannot be below 2 characters']
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required'],
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+  },
+  password: {
+    type: String,
+    required: function () {
+      // Password is required only for email/password authentication
+      return this.authProvider === 'local' || !this.authProvider;
+    },
+    minlength: [6, 'Password must be at least 6 characters'],
+    select: false // Don't include password in queries by default
+  },
+  googleId: {
+    type: String,
+    sparse: true, // Allow multiple null values but unique non-null values
+    unique: true
+  },
+  authProvider: {
+    type: String,
+    enum: ['local', 'google'],
+    default: 'local'
+  },
+  profilePicture: {
+    type: String
+  },
+  phone: {
+    type: String,
+    trim: true,
+    match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
+  },
+  age: {
+    type: Number,
+    min: [12, 'Age must be at least 1'],
+    max: [140, 'Age cannot exceed 100']
+  },
+  gender: {
+    type: String,
+    enum: ['male', 'female', 'other', 'prefer_not_to_say'],
+    default: 'prefer_not_to_say'
+  },
+  isPregnant: {
+    type: Boolean,
+    default: false
+  },
+  pregnancyStartDate: {
+    type: Date
+  },
+  dueDate: {
+    type: Date
+  },
+  currentWeek: {
+    type: Number,
+    min: 0,
+    max: 42
+  },
+  emergencyContacts: [{
+    name: String,
+    phone: String,
+    relationship: String
+  }],
+  preferences: {
+    language: {
       type: String,
-      required: [true, 'Name is required'],
-      trim: true,
-      maxlength: [100, 'Name cannot exceed 100 characters'],
-      minlength: [2, 'Name cannot be below 2 characters']
-    },  
-    email: {
-      type: String,
-      required: [true, 'Email is required'],
-      unique: true,
-      lowercase: true,
-      trim: true,
-      match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+      enum: ['rw', 'en', 'fr'],
+      default: 'en'
     },
-    password: {
-      type: String,
-      required: function() {
-        // Password is required only for email/password authentication
-        return this.authProvider === 'local' || !this.authProvider;
-      },
-      minlength: [6, 'Password must be at least 6 characters'],
-      select: false // Don't include password in queries by default
-    },
-    googleId: {
-      type: String,
-      sparse: true, // Allow multiple null values but unique non-null values
-      unique: true
-    },
-    authProvider: {
-      type: String,
-      enum: ['local', 'google'],
-      default: 'local'
-    },
-    profilePicture: {
-      type: String
-    },
-    phone: {
-      type: String,
-      trim: true,
-      match: [/^\+?[\d\s-()]+$/, 'Please enter a valid phone number']
-    },
-    age: {
-      type: Number,
-      min: [12, 'Age must be at least 1'],
-      max: [140, 'Age cannot exceed 100']
-    },
-    gender: {
-      type: String,
-      enum: ['male', 'female', 'other', 'prefer_not_to_say'],
-      default: 'prefer_not_to_say'
-    },
-    isPregnant: {
-      type: Boolean,
-      default: false
-    },
-    pregnancyStartDate: {
-      type: Date
-    },
-    dueDate: {
-      type: Date
-    },
-    currentWeek: {
-      type: Number,
-      min: 0,
-      max: 42
-    },
-    emergencyContacts: [{
-      name: String,
-      phone: String,
-      relationship: String
-    }],
-    preferences: {
-      language: {
-        type: String,
-        enum: ['rw', 'en', 'fr'],
-        default: 'en'
-      },
-      notifications: {
-        type: Boolean,
-        default: true
-      }
-    },
-    role: {
-      type: String,
-      enum: ['user', 'admin'],
-      default: 'user'
-    },
-    isActive: {
+    notifications: {
       type: Boolean,
       default: true
-    },
-    lastLogin: {
-      type: Date
-    },
-    resetPasswordToken: {
-      type: String,
-      select: false
-    },
-    resetPasswordExpire: {
-      type: Date,
-      select: false
     }
-  }, {
-    timestamps: true 
-  });
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  lastLogin: {
+    type: Date
+  },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailVerificationToken: {
+    type: String,
+    select: false
+  },
+  emailVerificationExpires: {
+    type: Date,
+    select: false
+  },
+  resetPasswordToken: {
+    type: String,
+    select: false
+  },
+  resetPasswordExpire: {
+    type: Date,
+    select: false
+  }
+}, {
+  timestamps: true
+});
 
-  // Hash password before saving
-  userSchema.pre('save', async function(next) {
-    // Skip password hashing for Google auth users without password
-    if (!this.password || !this.isModified('password')) return next();
-    
-    try {
-      // Hash password with cost of 12
-      this.password = await bcrypt.hash(this.password, 12);
-      next();
-    } catch (error) {
-      next(error);
-    }
-  });
+// Hash password before saving
+userSchema.pre('save', async function (next) {
+  // Skip password hashing for Google auth users without password
+  if (!this.password || !this.isModified('password')) return next();
 
-  // Instance method to check password
-  userSchema.methods.comparePassword = async function(candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
-  };
+  try {
+    // Hash password with cost of 12
+    this.password = await bcrypt.hash(this.password, 12);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
 
-  // Instance method to get user profile (without password)
-  userSchema.methods.getProfile = function() {
-    const userObject = this.toObject();
-    delete userObject.password;
-    return userObject;
-  };
+// Instance method to check password
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
 
-  // Static method to find user by email
-  userSchema.statics.findByEmail = function(email) {
-    return this.findOne({ email: email.toLowerCase() });
-  };
+// Instance method to get user profile (without password)
+userSchema.methods.getProfile = function () {
+  const userObject = this.toObject();
+  delete userObject.password;
+  return userObject;
+};
 
-  // Instance method to generate password reset token
-  userSchema.methods.getResetPasswordToken = function() {
-    // Generate token
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    
-    // Hash token and set to resetPasswordToken field
-    this.resetPasswordToken = crypto
-      .createHash('sha256')
-      .update(resetToken)
-      .digest('hex');
-    
-    // Set expire time (1 hour)
-    this.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
-    
-    return resetToken;
-  };
+// Static method to find user by email
+userSchema.statics.findByEmail = function (email) {
+  return this.findOne({ email: email.toLowerCase() });
+};
 
-  module.exports = mongoose.model('User', userSchema);
+// Instance method to generate password reset token
+userSchema.methods.getResetPasswordToken = function () {
+  // Generate token
+  const resetToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash token and set to resetPasswordToken field
+  this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(resetToken)
+    .digest('hex');
+
+  // Set expire time (1 hour)
+  this.resetPasswordExpire = Date.now() + 60 * 60 * 1000;
+
+  return resetToken;
+};
+
+// Instance method to generate email verification token
+userSchema.methods.getEmailVerificationToken = function () {
+  // Generate token
+  const verificationToken = crypto.randomBytes(32).toString('hex');
+
+  // Hash token and set to emailVerificationToken field
+  this.emailVerificationToken = crypto
+    .createHash('sha256')
+    .update(verificationToken)
+    .digest('hex');
+
+  // Set expire time (24 hours)
+  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+
+  return verificationToken;
+};
+
+module.exports = mongoose.model('User', userSchema);

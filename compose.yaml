@@ -1,0 +1,11 @@
+services:
+  server:
+    build: .
+    ports:
+      - "3001:3001"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb+srv://brucenshuti2:brucenshuti2@maternalusers.j9hn55m.mongodb.net/?retryWrites=true&w=majority&appName=MaternalUsers
+      - NODE_ENV=development
+    restart: unless-stopped

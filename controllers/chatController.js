@@ -1,8 +1,10 @@
 const axios = require('axios');
 
 // Chatbase API configuration
-const CHATBASE_API_KEY = process.env.CHATBASE_API_KEY;
-const CHATBASE_BOT_ID = process.env.CHATBASE_BOT_ID;
+// const CHATBASE_API_KEY = process.env.CHATBASE_API_KEY;
+
+const HUB_CHAT_ID = process.env.HUB_CHAT_ID;
+const MaternalChat = process.env.MaternalChat
 
 /**
  * Send message to Chatbase API
@@ -20,7 +22,7 @@ const sendMessage = async (req, res) => {
     if (!userId) {
       return res.status(400).json({ error: "userId is required" });
     }
-    if (!CHATBASE_BOT_ID || !CHATBASE_API_KEY) {
+    if (!MaternalChat || !HUB_CHAT_ID) {
       return res.status(500).json({ error: "Chatbase credentials not set" });
     }
 
@@ -32,14 +34,14 @@ const sendMessage = async (req, res) => {
           role: "user"
         }
       ],
-      chatbotId: CHATBASE_BOT_ID,
+      chatbotId: HUB_CHAT_ID,
       stream: false,
       temperature: 0
     };
 
     const response = await axios.post("https://www.chatbase.co/api/v1/chat", payload, {
       headers: {
-        Authorization: `Bearer ${CHATBASE_API_KEY}`,
+        Authorization: `Bearer ${HUB_CHAT_ID}`,
         "Content-Type": "application/json",
       },
     });

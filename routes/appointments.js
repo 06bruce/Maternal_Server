@@ -4,12 +4,13 @@ const router = express.Router();
 const Appointment = require('../models/Appointment');
 const User = require('../models/User');
 const { HOSPITALS_DATA } = require('../data/hospitals');
-const { 
-  getAvailableSlots, 
-  getAllHospitalSlots, 
-  validateSlot, 
-  getSlotInfo 
+const {
+  getAvailableSlots,
+  getAllHospitalSlots,
+  validateSlot,
+  getSlotInfo
 } = require('../data/slots');
+const { sendAppointmentConfirmation } = require('../utils/emailTemplates');
 
 // Middleware to verify JWT token
 const verifyToken = (req, res, next) => {
@@ -47,7 +48,7 @@ router.post('/', verifyToken, async (req, res) => {
     // Validate appointment reason
     const validReasons = ['prenatal', 'postpartum', 'vaccination', 'mental_health', 'emergency', 'therapy'];
     if (!validReasons.includes(reason)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Invalid appointment reason',
         validReasons: validReasons
       });
@@ -62,7 +63,7 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     if (existingAppointment) {
-      return res.status(409).json({ 
+      return res.status(409).json({
         error: 'This time slot is already booked',
         suggestedAction: 'Please choose a different time slot'
       });
@@ -74,10 +75,10 @@ router.post('/', verifyToken, async (req, res) => {
       date,
       status: { $ne: 'cancelled' }
     }).select('time');
-    
+
     const bookedTimes = bookedSlots.map(apt => apt.time);
     const slotValidation = validateSlot(time, reason, centerId, bookedTimes);
-    
+
     if (!slotValidation.isValid) {
       return res.status(400).json({
         error: 'Selected time slot is not available for this appointment type',
@@ -98,6 +99,15 @@ router.post('/', verifyToken, async (req, res) => {
     });
 
     await appointment.save();
+
+    // Get user details for email
+    const user = await User.findById(req.userId);
+
+    // Send confirmation email (don't wait for it)
+    if (user && user.email) {
+      sendAppointmentConfirmation(user.email, user.name, appointment)
+        .catch(err => console.error('Failed to send appointment confirmation:', err));
+    }
 
     res.status(201).json({
       message: 'Appointment booked successfully',
@@ -147,6 +157,15 @@ router.delete('/:id', verifyToken, async (req, res) => {
 
     appointment.status = 'cancelled';
     await appointment.save();
+
+    // Get user details for cancellation email
+    const user = await User.findById(req.userId);
+
+    // Send cancellation notification email (optional - you can create a template for this)
+    if (user && user.email) {
+      console.log(`✅ Appointment cancelled for user: ${user.email}`);
+      // You can add sendAppointmentCancellation() here if needed
+    }
 
     res.json({ message: 'Appointment cancelled successfully' });
   } catch (error) {
@@ -227,7 +246,7 @@ router.get('/slots/:centerId/:date', async (req, res) => {
     // Get all possible slots based on appointment type or general slots
     let availableSlots;
     let slotInfo = null;
-    
+
     if (appointmentType) {
       // Get slots specific to appointment type
       availableSlots = getAvailableSlots(appointmentType, centerId, bookedTimes);
@@ -266,7 +285,7 @@ router.get('/slots/:centerId/:date', async (req, res) => {
 router.get('/types', async (req, res) => {
   try {
     const { APPOINTMENT_TYPE_SLOTS } = require('../data/slots');
-    
+
     const appointmentTypes = Object.keys(APPOINTMENT_TYPE_SLOTS).map(type => ({
       type,
       ...getSlotInfo(type),

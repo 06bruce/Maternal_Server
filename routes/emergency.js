@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
-const HOSPITALS = require('../data/hospitals');
+const { HOSPITALS_DATA: HOSPITALS } = require('../data/hospitals');
 const Emergency = require('../models/Emergency');
 
 // Calculate distance between two coordinates (Haversine formula)
@@ -70,7 +70,7 @@ router.post('/alert', protect, async (req, res) => {
 
     // Create emergency record
     const emergencyId = `EMG-${Date.now()}-${userId}`;
-    
+
     // Store emergency in database
     const emergency = await Emergency.create({
       emergencyId,
@@ -102,10 +102,33 @@ router.post('/alert', protect, async (req, res) => {
       console.log(`     ${index + 1}. ${hospital.name} - ${hospital.emergencyPhone}`);
     });
 
-    // TODO: In production, implement:
+    // Send email notifications to hospitals
+    const { sendHospitalEmergencyAlert } = require('../utils/emailTemplates');
+
+    for (const hospital of nearestHospitals) {
+      if (hospital.email) {
+        sendHospitalEmergencyAlert(hospital.email, emergency)
+          .catch(err => console.error(`Failed to send alert to ${hospital.name}:`, err));
+      }
+    }
+
+    // TODO: In production, also implement:
     // 1. Send SMS to hospitals (Africa's Talking/Twilio)
     // 2. Send push notifications to hospital systems
     // 3. WebSocket/Socket.io for real-time updates to user
+
+    // Emit real-time notification to user
+    try {
+      const { emitEmergencyAlert } = require('../utils/socketHandler');
+      emitEmergencyAlert(userId, {
+        emergencyId,
+        status: 'pending',
+        hospitals: nearestHospitals,
+        message: 'Emergency alert sent successfully'
+      });
+    } catch (err) {
+      console.error('Failed to emit real-time notification:', err);
+    }
 
     res.status(200).json({
       success: true,
@@ -244,7 +267,13 @@ router.post('/:emergencyId/respond', async (req, res) => {
 
     console.log(`✅ HOSPITAL RESPONDED - ${hospital.name} responded to ${emergencyId}`);
 
-    // TODO: Send push notification to user via WebSocket/Firebase
+    // Emit real-time notification to user
+    try {
+      const { emitHospitalResponse } = require('../utils/socketHandler');
+      emitHospitalResponse(emergency.userId.toString(), emergencyId, emergency.respondedHospital);
+    } catch (err) {
+      console.error('Failed to emit hospital response notification:', err);
+    }
 
     res.status(200).json({
       success: true,

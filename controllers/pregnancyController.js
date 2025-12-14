@@ -1,7 +1,7 @@
 const axios = require('axios');
 
-const CHATBASE_API_KEY = process.env.CHATBASE_API_KEY;
-const CHATBASE_BOT_ID = process.env.CHATBASE_BOT_ID;
+const HUB_CHAT_ID = process.env.HUB_CHAT_ID;
+const MaternalChat = process.env.MaternalChat;
 
 /**
  * Generate AI-powered pregnancy week information
@@ -19,7 +19,7 @@ const getWeekInfo = async (req, res) => {
       });
     }
 
-    if (!CHATBASE_BOT_ID || !CHATBASE_API_KEY) {
+    if (!Maternal_Chat || !HUB_CHAT_ID) {
       return res.status(500).json({ 
         success: false,
         error: "Chatbase credentials not set" 
@@ -56,14 +56,14 @@ Return ONLY this JSON structure:
           role: "user"
         }
       ],
-      chatbotId: CHATBASE_BOT_ID,
+      chatbotId: MaternalChat,
       stream: false,
       temperature: 0.7
     };
 
     const response = await axios.post("https://www.chatbase.co/api/v1/chat", payload, {
       headers: {
-        Authorization: `Bearer ${CHATBASE_API_KEY}`,
+        Authorization: `Bearer ${HUB_CHAT_ID}`,
         "Content-Type": "application/json",
       },
     });

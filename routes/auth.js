@@ -14,6 +14,7 @@ const User = require('../models/User'); // e.g. ../models/User
 const { validatePregnancyData } = require('../utils/pregnancyUtils'); // e.g. ../utils/pregnancy
 const { generateToken } = require('../utils/jwt'); // e.g. ../utils/jwt
 const { sendWelcomeEmail, sendPasswordResetEmail, sendPasswordResetConfirmation } = require('../utils/emailService');
+const { sendVerificationEmail } = require('../utils/emailTemplates');
 const crypto = require('crypto');
 const { protect } = require('../middleware/auth');
 
@@ -133,19 +134,25 @@ router.post(
         currentWeek
       });
 
+      // Generate email verification token
+      const verificationToken = user.getEmailVerificationToken();
+      await user.save({ validateBeforeSave: false });
+
+      // Send verification email (don't wait for it to complete)
+      sendVerificationEmail(user.email, user.name, verificationToken)
+        .catch(err => console.error('Failed to send verification email:', err));
+
+      // Generate JWT token for immediate access (some features may require verification)
       const token = generateToken(user._id);
       user.lastLogin = new Date();
       await user.save();
 
-      // Send welcome email (don't wait for it to complete)
-      sendWelcomeEmail({ to: user.email, name: user.name })
-        .catch(err => console.error('Failed to send welcome email:', err));
-
       res.status(201).json({
         success: true,
-        message: 'User registered successfully',
+        message: 'User registered successfully. Please check your email to verify your account.',
         token,
-        user: user.getProfile ? user.getProfile() : { id: user._id, email: user.email }
+        user: user.getProfile ? user.getProfile() : { id: user._id, email: user.email },
+        emailVerificationRequired: true
       });
     } catch (error) {
       console.error('Registration error:', error);
@@ -322,14 +329,14 @@ router.post(
 
     } catch (error) {
       console.error('Google auth error:', error);
-      
+
       if (error.message && error.message.includes('Token used too late')) {
         return res.status(401).json({
           success: false,
           message: 'Google token has expired. Please try again.'
         });
       }
-      
+
       if (error.name === 'MongooseServerSelectionError' || (error.message && error.message.includes('ECONNREFUSED'))) {
         return res.status(503).json({ success: false, message: 'Database service unavailable.' });
       }
@@ -604,7 +611,7 @@ router.put(
       if (phone !== undefined) user.phone = phone;
       if (age !== undefined) user.age = age;
       if (emergencyContacts !== undefined) user.emergencyContacts = emergencyContacts;
-      
+
       // Update preferences
       if (preferences) {
         if (preferences.language !== undefined) {
@@ -634,7 +641,7 @@ router.put(
 
         user.isPregnant = currentIsPregnant;
         user.pregnancyStartDate = currentStartDate;
-        
+
         if (pregnancyValidation.data) {
           user.dueDate = pregnancyValidation.data.dueDate;
           user.currentWeek = pregnancyValidation.data.currentWeek;
@@ -674,5 +681,89 @@ router.put(
     }
   }
 );
+
+// @route   GET /api/auth/verify-email/:token
+// @desc    Verify user email
+// @access  Public
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Hash the token to compare with hashed token in database
+    const emailVerificationToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    // Find user with valid verification token that hasn't expired
+    const user = await User.findOne({
+      emailVerificationToken,
+      emailVerificationExpires: { $gt: Date.now() }
+    }).select('+emailVerificationToken +emailVerificationExpires');
+
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid or expired email verification token.'
+      });
+    }
+
+    // Mark email as verified
+    user.isEmailVerified = true;
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpires = undefined;
+    await user.save();
+
+    console.log(`✅ Email verified for user: ${user.email}`);
+
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully! You now have full access to all features.'
+    });
+
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error. Please try again later.'
+    });
+  }
+});
+
+// @route   POST /api/auth/resend-verification
+// @desc    Resend verification email
+// @access  Private
+router.post('/resend-verification', protect, async (req, res) => {
+  try {
+    const user = req.user;
+
+    // Check if already verified
+    if (user.isEmailVerified) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is already verified.'
+      });
+    }
+
+    // Generate new verification token
+    const verificationToken = user.getEmailVerificationToken();
+    await user.save({ validateBeforeSave: false });
+
+    // Send verification email
+    await sendVerificationEmail(user.email, user.name, verificationToken);
+
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent. Please check your inbox.'
+    });
+
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send verification email. Please try again later.'
+    });
+  }
+});
 
 module.exports = router;
