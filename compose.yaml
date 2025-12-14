@@ -6,6 +6,19 @@ services:
     env_file:
       - .env
     environment:
-      - MONGO_URI=mongodb+srv://brucenshuti2:brucenshuti2@maternalusers.j9hn55m.mongodb.net/?retryWrites=true&w=majority&appName=MaternalUsers
       - NODE_ENV=development
     restart: unless-stopped
+
+    develop:
+      watch:
+        - action: sync
+          path: .
+          target: /app
+          ignore:
+            - node_modules/
+            - .git/
+            - Dockerfile
+            - compose.yaml
+
+        - action: rebuild
+          path: package.json
