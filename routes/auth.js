@@ -766,4 +766,29 @@ router.post('/resend-verification', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/auth/verify-token
+// @desc    Verify and validate current JWT token (debugging endpoint)
+// @access  Private
+router.get('/verify-token', protect, async (req, res) => {
+  try {
+    res.status(200).json({
+      success: true,
+      message: 'Token is valid',
+      user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name,
+        isActive: req.user.isActive,
+        isEmailVerified: req.user.isEmailVerified
+      }
+    });
+  } catch (error) {
+    console.error('Token verification error:', error);
+    res.status(401).json({
+      success: false,
+      message: 'Token verification failed'
+    });
+  }
+});
+
 module.exports = router;

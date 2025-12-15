@@ -152,9 +152,12 @@ router.post('/alert', protect, async (req, res) => {
 router.get('/:emergencyId', protect, async (req, res) => {
   try {
     const { emergencyId } = req.params;
+    console.log(`[EMERGENCY GET] Fetching emergency: ${emergencyId} for user: ${req.user.id}`);
+    
     const emergency = await Emergency.findOne({ emergencyId });
 
     if (!emergency) {
+      console.log(`[EMERGENCY GET] Emergency not found: ${emergencyId}`);
       return res.status(404).json({
         success: false,
         message: 'Emergency not found'
@@ -163,19 +166,21 @@ router.get('/:emergencyId', protect, async (req, res) => {
 
     // Check if user owns this emergency
     if (emergency.userId.toString() !== req.user.id) {
+      console.error(`[EMERGENCY GET] ❌ Authorization mismatch. Emergency user: ${emergency.userId}, Request user: ${req.user.id}`);
       return res.status(403).json({
         success: false,
-        message: 'Unauthorized'
+        message: 'Unauthorized - this emergency does not belong to you'
       });
     }
 
+    console.log(`[EMERGENCY GET] ✅ Emergency retrieved successfully: ${emergencyId}`);
     res.status(200).json({
       success: true,
       emergency
     });
 
   } catch (error) {
-    console.error('Error getting emergency status:', error);
+    console.error('[EMERGENCY GET] ❌ Error getting emergency status:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to get emergency status',

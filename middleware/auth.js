@@ -18,6 +18,7 @@ const protect = async (req, res, next) => {
       const user = await User.findById(decoded.id).select('-password');
       
       if (!user) {
+        console.error(`[AUTH] User not found for ID: ${decoded.id}`);
         return res.status(401).json({
           success: false,
           message: 'User not found'
@@ -25,27 +26,33 @@ const protect = async (req, res, next) => {
       }
 
       if (!user.isActive) {
+        console.error(`[AUTH] Account deactivated for user: ${user.email}`);
         return res.status(401).json({
           success: false,
           message: 'Account is deactivated'
         });
       }
 
+      console.log(`[AUTH] ✅ Token verified for user: ${user.email} (${user.id})`);
       req.user = user;
       next();
     } catch (error) {
-      console.error('Token verification error:', error);
+      console.error(`[AUTH] ❌ Token verification failed:`, error.message);
       return res.status(401).json({
         success: false,
-        message: 'Not authorized, token failed'
+        message: 'Not authorized, token failed',
+        error: error.message
       });
     }
   }
 
   if (!token) {
+    console.error(`[AUTH] ❌ No token provided. Authorization header: ${req.headers.authorization || 'MISSING'}`);
+    console.error(`[AUTH] Request URL: ${req.method} ${req.url}`);
     return res.status(401).json({
       success: false,
-      message: 'Not authorized, no token'
+      message: 'Not authorized, no token',
+      details: 'Please include Authorization: Bearer <token> in headers'
     });
   }
 };
